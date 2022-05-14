@@ -9,8 +9,9 @@ use Yii;
 /**
  * This is just an example.
  */
-class MarkdownEditor extends Widget
+class Editor extends Widget
 {
+    static public $INSTANCE_ID = 1;
     const DIV = 'div';
     const TEXTAREA = 'textarea';
 
@@ -40,14 +41,19 @@ class MarkdownEditor extends Widget
     public $tagAttribute = [];
 
     /**
-     * default value of TinyMCE
+     * default value of editor
      */
     public $defaultValue = '';
 
     /**
-     * selector of TinyMCE
+     * selector of editor
      */
     public $selector = '';
+
+    /**
+     * @var int 编辑器实例id
+     */
+    public $instanceId = 0;
 
     /**
      * options of Markdown editor
@@ -159,7 +165,7 @@ class MarkdownEditor extends Widget
             return;
         }
         $this->options = [
-               'id'=> 'markdown',
+               'id'=> $this->selector,
                'externals'=> [
                  'echarts'=> 'window.echarts',
                  'katex'=> 'window.katex',
@@ -167,12 +173,12 @@ class MarkdownEditor extends Widget
                ],
                'isPreviewOnly'=> false,
                'engine'=> [
-                 'global'=> [
-                   'urlProcessor(url, srcType) {
-                     console.log(`url-processor`, url, srcType);
-                     return url;
-                   }',
-                ],
+//                 'global'=> [
+//                   'urlProcessor(url, srcType) {
+//                     console.log(`url-processor`, url, srcType);
+//                     return url;
+//                   }',
+//                ],
                  'syntax'=> [
                    'table'=> [
                      'enableChart'=> false,
@@ -202,11 +208,11 @@ class MarkdownEditor extends Widget
                  ],
                  'customSyntax'=> [
                    // SyntaxHookClass
-                   'CustomHook'=> [
-                     'syntaxClass'=> 'CustomHookA',
-                     'force'=> false,
-                     'after'=> 'br',
-                   ],
+//                   'CustomHook'=> [
+//                     'syntaxClass'=> 'CustomHookA',
+//                     'force'=> false,
+//                     'after'=> 'br',
+//                   ],
                  ],
                ],
                'toolbars'=> [
@@ -233,6 +239,7 @@ class MarkdownEditor extends Widget
                ],
                'editor'=> [
                  'defaultModel'=> 'edit&preview',
+                   'height'=>'80vh'
                ],
                'previewer'=> [
                  // 自定义markdown预览区域class
@@ -245,7 +252,7 @@ class MarkdownEditor extends Widget
 
 
     /**
-     * return tinymce toolbar
+     * return editor toolbar
      *
      * @param array|null $toolbars
      * @return string
@@ -288,6 +295,9 @@ class MarkdownEditor extends Widget
      */
     public function init()
     {
+        $this->instanceId = ++Editor::$INSTANCE_ID;
+        $this->selector = 'cherry'. $this->instanceId;
+
         $this->getDefaultConfig();
         if (!empty($this->tagId)) {
             $this->setId($this->tagId);
@@ -306,8 +316,11 @@ class MarkdownEditor extends Widget
             $this->options['selector'] = $this->selector;
         }
         if (empty($this->tagType)) {
-            $this->tagType = self::TEXTAREA;
+//            $this->tagType = self::TEXTAREA;
+            $this->tagType = self::DIV;
         }
+        // 设置cherry渲染的id
+        $this->options['id'] = $this->selector;
 
         if (!isset($this->options['toolbars'])) {
             $this->options['toolbars'] = self::MKDEditorToolbars();
@@ -345,14 +358,24 @@ class MarkdownEditor extends Widget
             return '<span>' . $error . '</span>';
         }
 
-        if ($this->tagType == self::TEXTAREA) {
-            $tagName = '';
-            if (!empty($this->tagAttribute['name'])) {
-                $tagName = $this->tagAttribute['name'];
-            }
-            return Html::textArea($tagName, $this->defaultValue, $this->tagAttribute);
+//        if ($this->tagType == self::TEXTAREA) {
+//            $tagName = '';
+//            if (!empty($this->tagAttribute['name'])) {
+//                $tagName = $this->tagAttribute['name'];
+//            }
+//            return Html::textArea($tagName, $this->defaultValue, $this->tagAttribute);
+//        }
+        $tagName = '';
+        if (!empty($this->tagAttribute['name'])) {
+            $tagName = $this->tagAttribute['name'];
         }
-        return Html::tag('div', $this->defaultValue, $this->tagAttribute);
+        $this->tagAttribute['hidden']='hidden';
+
+        $html = Html::beginTag('div');
+        $html .= Html::textarea($tagName, $this->defaultValue, $this->tagAttribute);
+        $html .=Html::tag('div', '', ['id'=>$this->selector]);
+        $html .= Html::endTag('div');
+        return $html;
     }
 
     protected function registerPlugin($view)
@@ -360,16 +383,22 @@ class MarkdownEditor extends Widget
         if (empty($this->options['selector'])) {
             return 'missing attribute selector';
         }
-        Asset::register($view);
-
+        EditorAsset::register($view);
         $js = '';
         $basicConfig = json_encode($this->options);
         $valueConfig = json_encode($this->defaultValue);
-
+        $instance_id = $this->instanceId;
+        $selector_id = $this->tagAttribute['id'];
         $js .= <<<EOF
-            var config = Object.assign({}, ${basicConfig}, { value: ${valueConfig} });
-            window.cherry = new Cherry(config);
-        EOF;
+            var conf = ${basicConfig};
+            var config = Object.assign({}, conf, { value: ${valueConfig} });
+            var cherry = new Cherry(config);
+            cherry.onChange((v1)=>{
+                console.log(v1, `${selector_id}`);
+                $('#${selector_id}').val(v1.markdown);
+            });
+            window.cherry${instance_id} = cherry;
+EOF;
 
         $view->registerJs($js);
 
