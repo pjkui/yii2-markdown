@@ -3,6 +3,7 @@
 namespace pjkui\markdown;
 use yii\base\Widget;
 use yii\base\Model;
+use yii\helpers\ArrayHelper;
 use yii\helpers\Html;
 use Yii;
 
@@ -161,10 +162,8 @@ class Editor extends Widget
     }
 
     protected function getDefaultConfig(){
-        if($this->options != null && count($this->options) == 0){
-            return;
-        }
-        $this->options = [
+
+        $options = [
                'id'=> $this->selector,
                'externals'=> [
                  'echarts'=> 'window.echarts',
@@ -248,6 +247,7 @@ class Editor extends Widget
                'keydown'=> [],
                //extensions=> [],
             ];
+        $this->options = ArrayHelper::merge($options, $this->options);
     }
 
 
@@ -389,8 +389,16 @@ class Editor extends Widget
         $valueConfig = json_encode($this->defaultValue);
         $instance_id = $this->instanceId;
         $selector_id = $this->tagAttribute['id'];
+        $url = $this->options['url'];
+        $extra = json_encode($this->options['extra']);
         $js .= <<<EOF
             var conf = ${basicConfig};
+            conf['fileUpload'] = (file,callback)=>{
+                var opt = {};
+                opt.url = "${url}";
+                opt.extra = ${extra};
+                markdownUploadFile(file,opt,callback);
+            } 
             var config = Object.assign({}, conf, { value: ${valueConfig} });
             var cherry = new Cherry(config);
             cherry.onChange((v1)=>{

@@ -8,7 +8,8 @@ class EditorAsset extends \yii\web\AssetBundle
 
     public $js = [
         // 'tinymce.min.js',
-        "cherry-markdown.js"
+        "cherry-markdown.js",
+        "upload-file.js"
         // '*.js'
     ];
     public $css = [
