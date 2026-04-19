@@ -216,29 +216,37 @@ class Editor extends Widget
                ],
                'toolbars'=> [
                  'toolbar'=> [
+                   'undo',
+                   'redo',
+                   '|',
+                   'header',
                    'bold',
                    'italic',
                    'strikethrough',
                    '|',
                    'color',
-                   'header',
+                   'size',
                    '|',
                    'list',
                    [
-                     'insert'=> ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table', 'pdf', 'word'],
+                     'insert'=> ['checklist', 'quote', 'hr', 'image', 'audio', 'video', 'link', 'br', 'code', 'formula', 'toc', 'table', 'line-table', 'bar-table', 'pdf', 'word'],
                    ],
+                   '|',
                    'graph',
-                   'togglePreview',
-                   'settings',
                    'switchModel',
                    'codeTheme',
                    'export',
+                   'settings',
                  ],
-                 'sidebar'=> ['mobilePreview', 'copy'],
+                 'toolbarRight'=> ['fullScreen'],
+                 'sidebar'=> ['mobilePreview', 'copy', 'theme', 'shortcutKey'],
+                 'bubble'=> ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
+                 'float'=> ['h1', 'h2', 'h3', '|', 'checklist', 'quote', 'table', 'code'],
                ],
                'editor'=> [
                  'defaultModel'=> 'edit&preview',
-                   'height'=>'80vh'
+                   'height'=>'620px',
+                   'convertWhenPaste'=> true,
                ],
                'previewer'=> [
                  // 自定义markdown预览区域class
@@ -263,25 +271,32 @@ class Editor extends Widget
         if ($toolbars === null) {
             $toolbars = [
                 'toolbar'=> [
+                  'undo',
+                  'redo',
+                  '|',
+                  'header',
                   'bold',
                   'italic',
                   'strikethrough',
                   '|',
                   'color',
-                  'header',
+                  'size',
                   '|',
                   'list',
                   [
-                    'insert'=> ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table', 'pdf', 'word'],
+                    'insert'=> ['checklist', 'quote', 'hr', 'image', 'audio', 'video', 'link', 'br', 'code', 'formula', 'toc', 'table', 'line-table', 'bar-table', 'pdf', 'word'],
                   ],
+                  '|',
                   'graph',
-                  'togglePreview',
-                  'settings',
                   'switchModel',
                   'codeTheme',
                   'export',
+                  'settings',
                 ],
-                'sidebar'=> ['mobilePreview', 'copy'],
+                'toolbarRight'=> ['fullScreen'],
+                'sidebar'=> ['mobilePreview', 'copy', 'theme', 'shortcutKey'],
+                'bubble'=> ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
+                'float'=> ['h1', 'h2', 'h3', '|', 'checklist', 'quote', 'table', 'code'],
             ];
         }
         return $toolbars;
@@ -385,30 +400,179 @@ class Editor extends Widget
         }
         EditorAsset::register($view);
         $js = '';
-        $basicConfig = json_encode($this->options);
-        $valueConfig = json_encode($this->defaultValue);
+        // 准备需要传入 JS 的配置（去除不属于 Cherry 的字段）
+        $cherryConfig = $this->options;
+        unset($cherryConfig['url'], $cherryConfig['extra'], $cherryConfig['lang'], $cherryConfig['selector'], $cherryConfig['relative_urls']);
+        $basicConfig = json_encode($cherryConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $valueConfig = json_encode($this->defaultValue, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $instance_id = $this->instanceId;
         $selector_id = $this->tagAttribute['id'];
-        $url = $this->options['url'];
-        $extra = json_encode($this->options['extra']);
+        $url = isset($this->options['url']) ? $this->options['url'] : '';
+        $extra = json_encode(isset($this->options['extra']) ? $this->options['extra'] : new \stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        // 草稿 key：按页面路径 + 字段 id，避免多文档冲突
+        $pathPart = '';
+        try {
+            if (Yii::$app->has('request') && Yii::$app->request instanceof \yii\web\Request) {
+                $pathPart = Yii::$app->request->pathInfo;
+            }
+        } catch (\Throwable $e) {
+            $pathPart = '';
+        }
+        $draftKey = 'md_draft_' . md5($pathPart . '|' . $selector_id);
         $js .= <<<EOF
-            var conf = ${basicConfig};
-            conf['fileUpload'] = (file,callback)=>{
-                var opt = {};
-                opt.url = "${url}";
-                opt.extra = ${extra};
-                markdownUploadFile(file,opt,callback);
-            } 
-            var config = Object.assign({}, conf, { value: ${valueConfig} });
-            var cherry = new Cherry(config);
-            cherry.onChange((v1)=>{
-                console.log(v1, `${selector_id}`);
-                $('#${selector_id}').val(v1.markdown);
+(function(){
+    var conf = {$basicConfig};
+    var UPLOAD_URL = "{$url}";
+    var UPLOAD_EXTRA = {$extra};
+    var DRAFT_KEY = "{$draftKey}";
+    var \$input = document.getElementById("{$selector_id}");
+    var originalValue = {$valueConfig} || "";
+
+    // ========= 文件上传（工具栏/粘贴/拖放通用） =========
+    conf['fileUpload'] = function(file, callback){
+        window.markdownUploadFile(file, {url: UPLOAD_URL, extra: UPLOAD_EXTRA}, function(url){
+            callback(url, { name: file.name, isBorder: false, isShadow: false, isRadius: false });
+        }, function(err){
+            console.error('[Markdown] 上传失败:', err);
+            if (window.UIkit && UIkit.notification) {
+                UIkit.notification({message: '文件上传失败: ' + err, status: 'danger'});
+            } else {
+                alert('文件上传失败: ' + err);
+            }
+        });
+    };
+
+    // ========= 深色模式跟随（项目 data-theme） =========
+    var htmlEl = document.documentElement;
+    var bodyTheme = htmlEl.getAttribute('data-theme') || (document.body && document.body.getAttribute('data-theme'));
+    conf['themeSettings'] = conf['themeSettings'] || {};
+    if (bodyTheme === 'dark') {
+        conf['themeSettings']['mainTheme'] = 'dark';
+    }
+
+    // ========= 恢复草稿（优先原值，若本地有较新草稿则提示恢复） =========
+    var initValue = originalValue;
+    try {
+        var saved = localStorage.getItem(DRAFT_KEY);
+        if (saved) {
+            var draft = JSON.parse(saved);
+            if (draft && draft.content && draft.content !== originalValue) {
+                // 延迟提示：Cherry 初始化后再问
+                setTimeout(function(){
+                    var tip = '检测到本地未提交的草稿（' + new Date(draft.time).toLocaleString() + '），是否恢复？';
+                    if (confirm(tip)) {
+                        window['cherry{$instance_id}'].setMarkdown(draft.content);
+                        if (\$input) \$input.value = draft.content;
+                    } else {
+                        localStorage.removeItem(DRAFT_KEY);
+                    }
+                }, 300);
+            }
+        }
+    } catch(e) { console.warn('[Markdown] 草稿读取失败:', e); }
+
+    // ========= 实例化 =========
+    var config = Object.assign({}, conf, { value: initValue });
+    var cherry = new Cherry(config);
+    window.cherry{$instance_id} = cherry;
+
+    // ========= 变更同步 + 自动保存 + 字数统计 =========
+    var saveTimer = null;
+    var isDirty = false;
+    var statusBar = document.createElement('div');
+    statusBar.className = 'md-editor-status';
+    statusBar.innerHTML = '<span class="md-words">字数：0</span><span class="md-draft-status"></span><span class="md-shortcuts">Ctrl/⌘+S 保存 · Ctrl+B 粗体 · Ctrl+I 斜体 · Ctrl+K 链接</span>';
+    var editorWrap = cherry.wrapperDom || cherry.cherryDom || document.querySelector('#cherry{$instance_id} .cherry') || document.getElementById('cherry{$instance_id}');
+    if (editorWrap && editorWrap.parentNode) {
+        editorWrap.parentNode.insertBefore(statusBar, editorWrap.nextSibling);
+    }
+
+    function countWords(text) {
+        if (!text) return 0;
+        // 中文按字符，英文按单词
+        var cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+        var en = (text.replace(/[\u4e00-\u9fa5]/g, ' ').match(/\b\w+\b/g) || []).length;
+        return cn + en;
+    }
+
+    cherry.onChange(function(v){
+        var md = v.markdown || '';
+        if (\$input) \$input.value = md;
+        isDirty = (md !== originalValue);
+        var wordsEl = statusBar.querySelector('.md-words');
+        if (wordsEl) wordsEl.textContent = '字数：' + countWords(md);
+        // 防抖自动保存到 LocalStorage
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(function(){
+            try {
+                localStorage.setItem(DRAFT_KEY, JSON.stringify({content: md, time: Date.now()}));
+                var st = statusBar.querySelector('.md-draft-status');
+                if (st) {
+                    st.textContent = '已保存草稿 ' + new Date().toLocaleTimeString();
+                    st.classList.add('saved');
+                }
+            } catch(e) {}
+        }, 800);
+    });
+
+    // 初始字数
+    setTimeout(function(){
+        var md = cherry.getMarkdown() || '';
+        var wordsEl = statusBar.querySelector('.md-words');
+        if (wordsEl) wordsEl.textContent = '字数：' + countWords(md);
+    }, 100);
+
+    // ========= 快捷键 Ctrl+S 提交 =========
+    document.addEventListener('keydown', function(e){
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            var form = \$input ? \$input.closest('form') : null;
+            if (form) {
+                e.preventDefault();
+                // 触发提交按钮点击，保证 ActiveForm 校验
+                var submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                if (submitBtn) { submitBtn.click(); } else { form.submit(); }
+            }
+        }
+    });
+
+    // ========= 离开页面未保存提醒 =========
+    window.addEventListener('beforeunload', function(e){
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '您有未保存的修改，确定离开吗？';
+            return e.returnValue;
+        }
+    });
+
+    // ========= 提交成功后清除草稿 =========
+    if (\$input) {
+        var form = \$input.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(){
+                isDirty = false;
+                try { localStorage.removeItem(DRAFT_KEY); } catch(e){}
             });
-            window.cherry${instance_id} = cherry;
+        }
+    }
+})();
 EOF;
 
         $view->registerJs($js);
+        // 状态栏样式
+        $view->registerCss(<<<CSS
+.md-editor-status{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:6px 12px;font-size:12px;color:#6b7280;background:#fafafa;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 4px 4px}
+.md-editor-status .md-draft-status{color:#10b981}
+.md-editor-status .md-draft-status.saved::before{content:"● "}
+.md-editor-status .md-shortcuts{margin-left:auto;color:#9ca3af}
+[data-theme="dark"] .md-editor-status{background:#1f2937;border-color:#374151;color:#9ca3af}
+[data-theme="dark"] .md-editor-status .md-shortcuts{color:#6b7280}
+@media (max-width: 768px){
+    .md-editor-status .md-shortcuts{display:none}
+    .cherry{--cherry-header-height: auto}
+    .cherry-toolbar{flex-wrap:wrap}
+}
+CSS
+        );
 
         return null;
     }
