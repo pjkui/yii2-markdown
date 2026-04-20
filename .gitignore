@@ -1,5 +1,33 @@
+# ===== 操作系统 =====
 .DS_Store
-*.swp
-node_modules/
+Thumbs.db
+Desktop.ini
+
+# ===== 编辑器 / IDE =====
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+*.bak
+
+# ===== 依赖目录 =====
+node_modules/
+vendor/
+
+# ===== Composer =====
+# 作为 Yii2 扩展包，不提交 lock 文件，由使用方自行锁定版本
+composer.lock
+composer.phar
+
+# ===== PHPUnit / 测试产物 =====
+.phpunit.cache/
+.phpunit.result.cache
+tests/runtime/
+tests/_output/
+coverage/
+*.log
+
+# ===== 其他 =====
+.env
+.env.local

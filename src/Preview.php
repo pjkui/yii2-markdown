@@ -196,10 +196,10 @@ class Preview extends \yii\base\Widget
         $value = json_encode($this->value);
         $instance_id = $this->instanceId;
         $js .= <<<EOF
-            var conf = ${basicConfig};
-            var config = Object.assign({}, conf, { value: ${value} });
+            var conf = {$basicConfig};
+            var config = Object.assign({}, conf, { value: {$value} });
             var cherry = new Cherry(config);
-            window.cherryPreview${instance_id} = cherry;
+            window.cherryPreview{$instance_id} = cherry;
 EOF;
 
         $this->view->registerJs($js);

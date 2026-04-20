@@ -7,6 +7,7 @@
 - [安装说明](./installation.md)
 - [使用示例](./usage.md)
 - [配置说明](./configuration.md)
+- [测试与可视化验证](./testing.md)
 
 ## 组件概览
 
@@ -43,4 +44,5 @@
 
 1. 先看 [安装说明](./installation.md)
 2. 再看 [使用示例](./usage.md)
-3. 最后按需查看 [配置说明](./configuration.md)
+3. 再看 [配置说明](./configuration.md)
+4. 联调前查看 [测试与可视化验证](./testing.md)

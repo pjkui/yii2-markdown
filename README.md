@@ -30,6 +30,7 @@ echo Editor::widget([
 - [安装说明](./docs/installation.md)
 - [使用示例](./docs/usage.md)
 - [配置说明](./docs/configuration.md)
+- [测试与可视化验证](./docs/testing.md)
 
 ## 目录结构
 
