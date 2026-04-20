@@ -557,7 +557,7 @@ class Editor extends Widget
 })();
 EOF;
 
-        $view->registerJs($js);
+        $view->registerJs($js, \yii\web\View::POS_END);
         // 状态栏样式
         $view->registerCss(<<<CSS
 .md-editor-status{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:6px 12px;font-size:12px;color:#6b7280;background:#fafafa;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 4px 4px}

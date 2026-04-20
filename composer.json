@@ -11,11 +11,11 @@
         }
     ],
     "require": {
-        "yiisoft/yii2": "~2.0.0",
-        "yidas/yii2-bower-asset": "*"
+        "yiisoft/yii2": "~2.0.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.5 || ^10.0"
+        "phpunit/phpunit": "^9.5 || ^10.0",
+        "yidas/yii2-bower-asset": "*"
     },
     "autoload": {
         "psr-4": {
@@ -28,7 +28,22 @@
         }
     },
     "scripts": {
-        "test": "phpunit --configuration phpunit.xml.dist"
+        "test": "phpunit --configuration phpunit.xml.dist",
+        "demo": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv YII2_MARKDOWN_DEMO=1",
+            "php -S 127.0.0.1:8080 -t examples examples/router.php"
+        ]
+    },
+    "archive": {
+        "exclude": [
+            "/examples",
+            "/tests",
+            "/docs",
+            "/.gitignore",
+            "/.gitattributes",
+            "/phpunit.xml.dist"
+        ]
     },
     "config": {
         "allow-plugins": {

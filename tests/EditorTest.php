@@ -50,7 +50,7 @@ class EditorTest extends TestCase
         ]);
 
         $view = \Yii::$app->view;
-        $js = implode("\n", $view->js[\yii\web\View::POS_READY] ?? []);
+        $js = implode("\n", $view->js[\yii\web\View::POS_END] ?? []);
         $css = implode("\n", $view->css ?? []);
 
         $this->assertStringContainsString('UPLOAD_URL = "/upload"', $js);

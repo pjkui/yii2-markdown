@@ -202,7 +202,7 @@ class Preview extends \yii\base\Widget
             window.cherryPreview{$instance_id} = cherry;
 EOF;
 
-        $this->view->registerJs($js);
+        $this->view->registerJs($js, \yii\web\View::POS_END);
         echo Html::tag('div', '',['id'=>$this->selector]);
     }
 

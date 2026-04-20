@@ -1,0 +1,14 @@
+# 从 composer/git 归档中排除开发/演示用文件，避免污染使用方 vendor
+/examples  export-ignore
+/tests     export-ignore
+/docs      export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/phpunit.xml.dist   export-ignore
+
+# 统一换行符，避免 Windows 上提交污染
+* text=auto
+*.php text eol=lf
+*.md  text eol=lf
+*.js  text eol=lf
+*.css text eol=lf

@@ -28,6 +28,13 @@ tests/_output/
 coverage/
 *.log
 
+# ===== Examples 运行时产物 =====
+examples/assets/
+# 保留 uploads 目录下的防护文件（.htaccess/index.html），忽略所有上传内容
+examples/uploads/*
+!examples/uploads/.htaccess
+!examples/uploads/index.html
+
 # ===== 其他 =====
 .env
 .env.local

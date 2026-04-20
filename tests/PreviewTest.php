@@ -15,7 +15,7 @@ class PreviewTest extends TestCase
         ]);
 
         $view = \Yii::$app->view;
-        $js = implode("\n", $view->js[\yii\web\View::POS_READY] ?? []);
+        $js = implode("\n", $view->js[\yii\web\View::POS_END] ?? []);
 
         $this->assertStringContainsString('id="markdown-pre1"', $html);
         $this->assertStringContainsString('window.cherryPreview1 = cherry;', $js);

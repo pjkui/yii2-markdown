@@ -18,6 +18,8 @@ class EditorAsset extends \yii\web\AssetBundle
     ];
     public $publishOptions = [
         'only' => [
+            '*.js',
+            '*.css',
             '*/*.js',
             '*/*.css',
             'addons/*',
