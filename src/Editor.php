@@ -205,14 +205,7 @@ class Editor extends Widget
                    //   strict=> false
                    // ]
                  ],
-                 'customSyntax'=> [
-                   // SyntaxHookClass
-//                   'CustomHook'=> [
-//                     'syntaxClass'=> 'CustomHookA',
-//                     'force'=> false,
-//                     'after'=> 'br',
-//                   ],
-                 ],
+                 'customSyntax'=> new \stdClass(),
                ],
                'toolbars'=> [
                  'toolbar'=> [
@@ -239,7 +232,7 @@ class Editor extends Widget
                    'settings',
                  ],
                  'toolbarRight'=> ['fullScreen'],
-                 'sidebar'=> ['mobilePreview', 'copy', 'theme', 'shortcutKey'],
+                 'sidebar'=> ['mobilePreview', 'copy', 'theme'],
                  'bubble'=> ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
                  'float'=> ['h1', 'h2', 'h3', '|', 'checklist', 'quote', 'table', 'code'],
                ],
@@ -248,11 +241,7 @@ class Editor extends Widget
                    'height'=>'620px',
                    'convertWhenPaste'=> true,
                ],
-               'previewer'=> [
-                 // 自定义markdown预览区域class
-                 // className=> 'markdown'
-               ],
-               'keydown'=> [],
+               'previewer'=> new \stdClass(),
                //extensions=> [],
             ];
         $this->options = ArrayHelper::merge($options, $this->options);
@@ -294,7 +283,7 @@ class Editor extends Widget
                   'settings',
                 ],
                 'toolbarRight'=> ['fullScreen'],
-                'sidebar'=> ['mobilePreview', 'copy', 'theme', 'shortcutKey'],
+                'sidebar'=> ['mobilePreview', 'copy', 'theme'],
                 'bubble'=> ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
                 'float'=> ['h1', 'h2', 'h3', '|', 'checklist', 'quote', 'table', 'code'],
             ];
