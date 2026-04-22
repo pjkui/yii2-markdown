@@ -160,28 +160,21 @@ class Preview extends \yii\base\Widget
                     //   strict=> false
                     // ]
                 ],
-                'customSyntax' => [
-                    // SyntaxHookClass
-//                    'CustomHook' => [
-//                        'syntaxClass' => 'CustomHookA',
-//                        'force' => false,
-//                        'after' => 'br',
-//                    ],
-                ],
+                'customSyntax' => new \stdClass(),
             ],
             'toolbars' => [
-                'toolbar' => false,
-                'sidebar' => ['mobilePreview', 'copy'],
+                // previewOnly 模式不展示工具栏，但 Cherry 0.11 要求 toolbar 是 Array
+                'showToolbar' => false,
+                'toolbar' => [],
+                'toolbarRight' => [],
+                'sidebar' => [],
+                'bubble' => [],
+                'float' => [],
             ],
             'editor' => [
-                'defaultModel' => 'edit&preview',
-                'height' => '80vh'
+                'defaultModel' => 'previewOnly',
             ],
-            'previewer' => [
-                // 自定义markdown预览区域class
-                // className=> 'markdown'
-            ],
-            'keydown' => [],
+            'previewer' => new \stdClass(),
             //extensions=> [],
         ];
     }
@@ -192,8 +185,8 @@ class Preview extends \yii\base\Widget
 
         EditorAsset::register($this->view);
         $js = '';
-        $basicConfig = json_encode($this->options);
-        $value = json_encode($this->value);
+        $basicConfig = json_encode($this->options, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $value = json_encode($this->value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $instance_id = $this->instanceId;
         $js .= <<<EOF
             var conf = {$basicConfig};
