@@ -662,8 +662,10 @@
                 // readEngineValue 可能返回 null（引擎未就绪 / 读失败）；
                 // 在切换路径上，用户已经点了确认按钮，不能让 null 蒸发内容：
                 // 退而求其次，从上一轮 hidden.value / snapshot.value / lastKnownValue 恢复。
+                // 统一用 falsy 判断：readEngineValue 可能返回 '' 而非 null，
+                // 此时必须走兜底（mdInput / snapshot / lastKnownValue）。
                 var beforeValue = readEngineValue(state);
-                if (beforeValue === null) {
+                if (!beforeValue) {
                     beforeValue = (state.mdInput && state.mdInput.value)
                             || (state.snapshot && state.snapshot.value)
                             || (state.lastKnownValue)
