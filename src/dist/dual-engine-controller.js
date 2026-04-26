@@ -648,6 +648,30 @@
             if (!state) { warn('instance not found: ' + id); return Promise.resolve(false); }
             if (state.engine === to) return Promise.resolve(true);
 
+            // 【R4 根因修复】在弹确认框之前，先把当前引擎的真实值强制同步到 mdInput。
+            // 这样即使引擎在 rerenderAs 里被销毁、或在异步回调里 getValue 返回空，
+            // mdInput.value 已经是最新的内容，兜底链一定不会拿到空串。
+            (function forceSync() {
+                try {
+                    if (state.engine === 'cherry' && global['cherry' + state.id]) {
+                        var c = global['cherry' + state.id];
+                        if (typeof c.getMarkdown === 'function') {
+                            var v = c.getMarkdown() || '';
+                            if (v && state.mdInput) state.mdInput.value = v;
+                            if (v) state.lastKnownValue = v;
+                        }
+                    } else if (state.engine === 'vditor' && global['vditor_' + state.id]) {
+                        var v2 = global['vditor_' + state.id];
+                        // wysiwyg 模式 getValue() 返回 markdown
+                        if (typeof v2.getValue === 'function') {
+                            var v = v2.getValue() || '';
+                            if (v && state.mdInput) state.mdInput.value = v;
+                            if (v) state.lastKnownValue = v;
+                        }
+                    }
+                } catch (e) {}
+            })();
+
             return confirmDialog({
                 title: '切换编辑模式',
                 message: to === 'vditor'
