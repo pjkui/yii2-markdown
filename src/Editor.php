@@ -16,6 +16,15 @@ class Editor extends Widget
     const DIV = 'div';
     const TEXTAREA = 'textarea';
 
+    /**
+     * 是否按 Markdown 模式（Cherry）渲染。
+     *  - true（默认）：保持原有 Cherry Markdown 行为。
+     *  - false：顶层直接转交给 {@see VditorEditor} 渲染所见即所得（WYSIWYG）UI。
+     *
+     * @var bool
+     */
+    public $isMarkdown = true;
+
     public $tagId = '';
 
     /**
@@ -299,6 +308,12 @@ class Editor extends Widget
      */
     public function init()
     {
+        // 非 Markdown 模式：标记为路由到 Vditor，run() 中直接把输出交给 VditorEditor
+        if ($this->isMarkdown === false) {
+            parent::init();
+            return;
+        }
+
         $this->instanceId = ++Editor::$INSTANCE_ID;
         $this->selector = 'cherry'. $this->instanceId;
 
@@ -351,6 +366,20 @@ class Editor extends Widget
      */
     public function run()
     {
+        // 路由：WYSIWYG 模式直接委托给 VditorEditor
+        if ($this->isMarkdown === false) {
+            return VditorEditor::widget([
+                'name' => isset($this->tagAttribute['name']) ? $this->tagAttribute['name'] : '',
+                'model' => $this->model,
+                'attribute' => $this->attribute,
+                'value' => $this->defaultValue !== '' ? $this->defaultValue : (string) $this->value,
+                'options' => [],
+                'clientOptions' => isset($this->options['vditor']) && is_array($this->options['vditor']) ? $this->options['vditor'] : [],
+                'uploadUrl' => isset($this->options['url']) ? (string) $this->options['url'] : '',
+                'uploadExtra' => isset($this->options['extra']) && is_array($this->options['extra']) ? $this->options['extra'] : [],
+            ]);
+        }
+
         if (!($this->tagType == self::DIV || $this->tagType == self::TEXTAREA)) {
             return '<span>error tag</span>';
         }
@@ -375,7 +404,12 @@ class Editor extends Widget
         }
         $this->tagAttribute['hidden']='hidden';
 
-        $html = Html::beginTag('div');
+        $html = Html::beginTag('div', [
+            'class' => 'yii2-markdown-root yii2-markdown-root--cherry',
+            'data-engine' => 'cherry',
+            'data-is-markdown' => '1',
+            'data-instance-id' => (string) $this->instanceId,
+        ]);
         $html .= Html::textarea($tagName, $this->defaultValue, $this->tagAttribute);
         $html .=Html::tag('div', '', ['id'=>$this->selector]);
         $html .= Html::endTag('div');
