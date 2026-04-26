@@ -1,0 +1,75 @@
+name: Bug 报告 (Bug Report)
+description: 报告一个可复现的缺陷
+title: "[Bug] "
+labels: ["type:bug", "status:todo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供可复现步骤与环境信息，以便快速定位。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 简要描述 Bug 现象。
+      placeholder: 例如：渲染 Markdown 时表格样式丢失…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 可附报错日志、截图、堆栈。
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: yii2-markdown 版本
+      placeholder: 例如 v2.x.x 或 commit hash
+    validations:
+      required: true
+  - type: input
+    id: yii
+    attributes:
+      label: Yii 版本
+      placeholder: 例如 2.0.49
+    validations:
+      required: true
+  - type: input
+    id: php
+    attributes:
+      label: PHP 版本
+      placeholder: 例如 8.2.15
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统 / 浏览器
+      placeholder: 例如 Ubuntu 22.04 / Chrome 124
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他信息
+      description: 相关配置、最小复现仓库、日志片段等。
+    validations:
+      required: false

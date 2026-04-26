@@ -1,0 +1,54 @@
+name: 功能需求 (Feature Request)
+description: 提交一个新功能或增强建议
+title: "[Feature] "
+labels: ["type:feature", "status:todo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交需求！请尽量填写完整，以便评估与排期。
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景 / 动机
+      description: 这个需求解决了什么问题？当前的痛点是什么？
+      placeholder: 描述用户场景、现状问题、期望效果…
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 方案描述
+      description: 希望如何实现？接口、配置项、交互大致是什么样？
+      placeholder: 可以贴伪代码、配置示例、截图、原型…
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 满足哪些条件即视为完成？
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 备选方案 / 参考资料
+      description: 是否调研过其他方案？有相关链接、竞品参考吗？
+    validations:
+      required: false
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 期望优先级
+      options:
+        - P0 紧急
+        - P1 高
+        - P2 中
+        - P3 低
+      default: 2
+    validations:
+      required: true

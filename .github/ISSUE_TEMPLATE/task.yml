@@ -1,0 +1,41 @@
+name: 任务 (Task)
+description: 内部开发任务，如重构、测试、依赖升级、文档等
+title: "[Task] "
+labels: ["type:chore", "status:todo"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标
+      description: 这项任务要达成什么？
+    validations:
+      required: true
+  - type: textarea
+    id: todo
+    attributes:
+      label: 执行清单
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 任务类型
+      options:
+        - 重构 (refactor)
+        - 测试 (test)
+        - 文档 (docs)
+        - 依赖/构建 (chore)
+        - 其他
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注 / 关联
+      description: 相关 Issue、PR、文档链接。
+    validations:
+      required: false
