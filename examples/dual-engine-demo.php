@@ -143,13 +143,20 @@ if (isset($_GET['engine']) && $_GET['engine'] === 'wysiwyg') {
     $model->isMarkdown = false;
 }
 
-// ========== 资源注册：互转 + 控制器 ==========
+// ========== 资源注册：互转 + 控制器 + Vditor（为运行时切换预加载）==========
+// 无论首屏是 Cherry 还是 Vditor，双引擎演示页都需要把两端资源都载好，
+// 否则用户点「切换到所见即所得」时 `new window.Vditor(...)` 会因 Vditor 未定义而失败，
+// 表现为 data-engine 不翻牌、window.vditor_<id> 不出现、E2E 10s 超时。
 \pjkui\markdown\ConverterAsset::register($view);
+\pjkui\markdown\VditorAsset::register($view);
 $controllerPublishedUrl = Yii::$app->assetManager
     ->getPublishedUrl(Yii::getAlias('@pjkui/markdown/dist'))
     . '/dual-engine-controller.js';
 $view->registerJsFile($controllerPublishedUrl, [
-    'depends' => [\pjkui\markdown\ConverterAsset::class],
+    'depends' => [
+        \pjkui\markdown\ConverterAsset::class,
+        \pjkui\markdown\VditorAsset::class,
+    ],
     'position' => \yii\web\View::POS_END,
 ]);
 

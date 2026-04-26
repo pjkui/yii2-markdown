@@ -404,6 +404,10 @@
             mount = doc.createElement('div');
             mount.id = mountId;
             root.appendChild(mount);
+            if (typeof global.Cherry !== 'function') {
+                warn('Cherry global is missing; EditorAsset may not be registered on this page.');
+                return false;
+            }
             try {
                 var cherry = new global.Cherry({
                     id: mountId,
@@ -421,6 +425,11 @@
             mount.id = mountId;
             mount.className = 'yii2-markdown-vditor-mount';
             root.appendChild(mount);
+            if (typeof global.Vditor !== 'function') {
+                warn('Vditor global is missing; VditorAsset may not be registered on this page. '
+                    + 'Register pjkui\\markdown\\VditorAsset in your view or use Editor::widget with isMarkdown=false at least once so the asset loads up-front.');
+                return false;
+            }
             try {
                 var vd = new global.Vditor(mountId, {
                     mode: 'wysiwyg',
