@@ -47,14 +47,21 @@
     function $(sel, ctx) { return (ctx || doc).querySelector(sel); }
     function $all(sel, ctx) { return Array.prototype.slice.call((ctx || doc).querySelectorAll(sel)); }
 
-    function dispatch(name, detail) {
+    function dispatch(target, name, detail) {
+        // 兼容旧调用 dispatch(name, detail)：第一个参数是字符串时退化为 document
+        if (typeof target === 'string') {
+            detail = name;
+            name = target;
+            target = doc;
+        }
+        target = target || doc;
         try {
-            doc.dispatchEvent(new CustomEvent(name, { detail: detail || {}, bubbles: true }));
+            target.dispatchEvent(new CustomEvent(name, { detail: detail || {}, bubbles: true }));
         } catch (e) {
             // IE11 fallback (project doesn't target it but be safe)
             var ev = doc.createEvent('CustomEvent');
             ev.initCustomEvent(name, true, false, detail || {});
-            doc.dispatchEvent(ev);
+            target.dispatchEvent(ev);
         }
     }
 
@@ -448,12 +455,48 @@
         return true;
     }
 
+    // ---- argument normalization helpers ------------------------------------
+    function engineFromAlias(v) {
+        // 接受 'cherry' / 'md' / 'markdown' → 'cherry'
+        // 接受 'vditor' / 'html' / 'wysiwyg' → 'vditor'
+        if (!v) return null;
+        var s = String(v).toLowerCase();
+        if (s === 'cherry' || s === 'md' || s === 'markdown') return 'cherry';
+        if (s === 'vditor' || s === 'html' || s === 'wysiwyg') return 'vditor';
+        return null;
+    }
+
+    function resolveInstanceId(arg) {
+        // 接受：实例 id 字符串/数字 / 根 DOM 节点 / 包含根的祖先节点 / 省略（取唯一实例）
+        if (arg === undefined || arg === null) {
+            var keys = Object.keys(instances);
+            return keys.length === 1 ? keys[0] : null;
+        }
+        if (typeof arg === 'string' || typeof arg === 'number') return String(arg);
+        if (arg && arg.nodeType === 1) {
+            var root = arg.classList && arg.classList.contains('yii2-markdown-root')
+                ? arg : arg.querySelector && arg.querySelector('.yii2-markdown-root[data-instance-id]');
+            if (root) return root.getAttribute('data-instance-id');
+        }
+        return null;
+    }
+
     // ---------------------------------------------------------------- public API
     var api = {
         __ready: true,
 
-        init: function (opts) {
-            opts = opts || {};
+        /**
+         * init(opts?)              — 自动扫描所有 .yii2-markdown-root
+         * init(rootEl, opts?)      — 仅初始化指定 root（团队 leader 风格）
+         */
+        init: function (a, b) {
+            var opts = {};
+            if (a && a.nodeType === 1) {
+                opts = b || {};
+                opts.root = a;
+            } else {
+                opts = a || {};
+            }
             injectStyles();
 
             // 自动扫描所有根节点
@@ -492,7 +535,39 @@
             return Object.keys(instances).length;
         },
 
-        switchTo: function (id, to) {
+        /**
+         * switchTo(idOrRoot, 'cherry'|'vditor'|'md'|'html')
+         * switchTo('md'|'html')      — 唯一实例时的 leader 风格简写
+         */
+        switchTo: function (a, b) {
+            var id, target;
+            // 形态 A：switchTo('md'|'html') 单参数
+            if (b === undefined) {
+                id = resolveInstanceId(null);
+                target = engineFromAlias(a);
+            } else {
+                id = resolveInstanceId(a);
+                target = engineFromAlias(b);
+            }
+            if (!id) { warn('switchTo: ambiguous or missing instance id'); return Promise.resolve(false); }
+            if (!target) { warn('switchTo: unrecognized target engine'); return Promise.resolve(false); }
+            return doSwitch(id, target);
+        },
+
+        /**
+         * revert(idOrRoot?)         — 省略时取唯一实例
+         */
+        revert: function (a) {
+            var id = resolveInstanceId(a);
+            if (!id) { warn('revert: ambiguous or missing instance id'); return false; }
+            return doRevert(id);
+        },
+
+        getInstance: getInstance,
+        _instances: instances,
+    };
+
+    function doSwitch(id, to) {
             var state = getInstance(id);
             if (!state) { warn('instance not found: ' + id); return Promise.resolve(false); }
             if (state.engine === to) return Promise.resolve(true);
@@ -515,7 +590,7 @@
                     time: Date.now(),
                 };
 
-                dispatch('yii2md:beforeSwitch', { instanceId: id, from: fromEngine, to: to });
+                dispatch(state.root, 'yii2md:beforeSwitch', { instanceId: id, from: fromEngine, to: to });
 
                 var conv = getConverter();
                 var newValue;
@@ -541,12 +616,12 @@
                 }
 
                 showBanner(state, '已转换为 ' + (to === 'cherry' ? 'Markdown' : '所见即所得') + ' 模式。如需放弃本次转换，请点击右侧按钮。');
-                dispatch('yii2md:afterSwitch', { instanceId: id, from: fromEngine, to: to });
+                dispatch(state.root, 'yii2md:afterSwitch', { instanceId: id, from: fromEngine, to: to });
                 return true;
             });
-        },
+    }
 
-        revert: function (id) {
+    function doRevert(id) {
             var state = getInstance(id);
             if (!state || !state.snapshot) {
                 warn('nothing to revert for ' + id);
@@ -556,14 +631,10 @@
             var ok = rerenderAs(state, snap.engine, snap.value);
             if (!ok) return false;
             hideBanner(state);
-            dispatch('yii2md:revert', { instanceId: id, restoredEngine: snap.engine });
+            dispatch(state.root, 'yii2md:revert', { instanceId: id, restoredEngine: snap.engine });
             state.snapshot = null;
             return true;
-        },
-
-        getInstance: getInstance,
-        _instances: instances,
-    };
+    }
 
     function waitFor(predicate, timeoutMs) {
         return new Promise(function (resolve) {
