@@ -97,9 +97,9 @@
 | 全局对象 | 类型 | 用途 |
 | --- | --- | --- |
 | `window.Yii2Markdown.DualEngine` | `object` | 提供 `init / switchTo / revert` |
-| `window.Yii2Markdown.Convert` | `object` | 提供 `mdToHtml / htmlToMd` |
+| `window.Yii2Markdown.Converter` | `object` | 提供 `markdownToHtml / htmlToMarkdown` |
 | `window.cherry{N}` | `Cherry` 实例 | 当 N 号实例运行 Cherry 时存在 |
-| `window.vditor{N}` | `Vditor` 实例 | 当 N 号实例运行 Vditor 时存在 |
+| `window.vditor_{N}` | `Vditor` 实例 | 当 N 号实例运行 Vditor 时存在 |
 
 ## 配置建议
 

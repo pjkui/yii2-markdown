@@ -173,11 +173,18 @@ document.addEventListener('yii2md:afterSwitch', e => {
 加载完成后，全局会暴露：
 
 ```js
-window.Yii2Markdown.DualEngine.init(opts);     // 一般由组件自动调用
-window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'|'vditor'); // 编程式切换
-window.Yii2Markdown.DualEngine.revert(id);     // 等价于点击放弃转换
-window.Yii2Markdown.Convert.mdToHtml(md);      // 同步 Markdown → HTML
-window.Yii2Markdown.Convert.htmlToMd(html);    // 同步 HTML → Markdown
+window.Yii2Markdown.DualEngine.init();                       // 由 DOM 加载完成自动调用，幂等
+window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'|'vditor'); // 编程式切换（弹确认框）
+window.Yii2Markdown.DualEngine.revert(id);                   // 等价于点击「放弃转换」
+window.Yii2Markdown.Converter.markdownToHtml(md, options?);  // 同步 Markdown → HTML（marked 12 + GFM）
+window.Yii2Markdown.Converter.htmlToMarkdown(html, options?);// 同步 HTML → Markdown（Turndown + GFM）
 ```
+
+> 在不使用 Cherry/Vditor 的纯展示页里，也可以**单独**注册 `ConverterAsset` 来使用互转 API：
+>
+> ```php
+> use pjkui\markdown\ConverterAsset;
+> ConverterAsset::register($this);
+> ```
 
 更详细的迁移与字段持久化建议见 [docs/migration-guide.md](./migration-guide.md)。
