@@ -2,6 +2,33 @@
 
 本文件记录 `pjkui/yii2-markdown` 的显著变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)，版本号遵循 [Semantic Versioning](https://semver.org/)。
 
+## [1.3.0] - Unreleased
+
+> 主题：**双引擎（Cherry Markdown + Vditor），可在 Markdown 与所见即所得之间无缝切换**
+> 关联 issue：[#1](https://github.com/pjkui/yii2-markdown/issues/1)、[#3](https://github.com/pjkui/yii2-markdown/issues/3)、[#4](https://github.com/pjkui/yii2-markdown/issues/4)、[#5](https://github.com/pjkui/yii2-markdown/issues/5)、[#6](https://github.com/pjkui/yii2-markdown/issues/6)、[#7](https://github.com/pjkui/yii2-markdown/issues/7)、[#8](https://github.com/pjkui/yii2-markdown/issues/8)
+
+### Added
+- **Vditor 引擎**：`pjkui\markdown\VditorEditor`、`VditorAsset`、`src/dist/vditor/*`
+- **统一入口** `Editor` 顶层新增 `isMarkdown` 选项，按值路由到 Cherry / Vditor 两套实现
+- **互转 API**：`window.Yii2Markdown.Convert.{mdToHtml, htmlToMd}`，基于 marked + Turndown
+- **模式切换控制器** `src/dist/dual-engine-controller.js`：
+  - `window.Yii2Markdown.DualEngine.{init, switchTo, revert}`
+  - 切换前确认对话框（纯 CSS）
+  - 内存快照 `__lastSnapshot`，转换后顶部黄色横幅 + 「放弃转换」按钮
+  - 自定义事件 `yii2md:beforeSwitch / afterSwitch / revert`
+- **双 hidden 字段**：表单同时输出 `{name}_md` / `{name}_html`，按需持久化
+- **演示 Demo** `examples/dual-engine-demo.php`（仅本机 + DEMO 守卫）
+- **文档**：新增 `docs/migration-guide.md`，更新 `docs/usage.md §7`、`docs/configuration.md` 双引擎章节
+- **E2E 测试**：`tests/e2e/switch-mode.spec.js`（T1–T9）、`tests/e2e/dual-engine.spec.js`（E1–E7）
+
+### Changed
+- `Editor::widget` 默认行为不变，未传 `isMarkdown` 时与 v1.2.x 完全等价
+- 资源发布白名单（`EditorAsset` / `VditorAsset`）补全，覆盖 `vditor/` 子目录
+
+### Migration
+- 升级即可使用，无破坏性改动；新字段 `_md` / `_html` 按需在后端 `rules()` 接受
+- 详见 [docs/migration-guide.md](./docs/migration-guide.md)
+
 ## [1.2.0] - 2026-04-20
 
 ### Added

@@ -113,3 +113,71 @@ echo Editor::widget([
 - `Ctrl/⌘ + S` 可触发表单提交
 
 如果项目中不需要这些增强能力，可以在后续版本中继续拆分配置项或做二次封装。
+
+## 7. 双引擎：Markdown ↔ 所见即所得（v1.3.0+）
+
+从 v1.3.0 起，`Editor` 同时支持两种编辑引擎：
+
+- **Cherry Markdown**：经典 Markdown 源码模式（默认）
+- **Vditor**：所见即所得（WYSIWYG）模式
+
+### 7.1 选择启动引擎
+
+```php
+echo Editor::widget([
+    'model' => $model,
+    'attribute' => 'content',
+    'isMarkdown' => true,    // true = Cherry / Markdown；false = Vditor / WYSIWYG
+]);
+```
+
+省略 `isMarkdown` 时默认为 `true`，行为与 v1.2.x 完全一致。
+
+### 7.2 双 hidden 字段
+
+无论从哪种引擎进入页面，组件都会渲染两个隐藏 `textarea`：
+
+- `name="{attribute}_md"`：Markdown 文本
+- `name="{attribute}_html"`：HTML 文本
+
+每次内容变更时，**当前引擎的原生格式**会被同步进对应的隐藏字段，另一端按需通过转换 API 填充。后端可根据业务选择存储 Markdown、HTML 或两者皆存。
+
+### 7.3 工具栏中的「切换模式」按钮
+
+两个引擎的工具栏右侧都会注入一枚切换按钮：
+
+- 点击后弹出确认对话框（纯 CSS 实现，无第三方依赖）
+- 用户确认后内部用 `marked`/`Turndown` 将当前内容互转为另一种格式
+- 切换完成后顶部出现黄色横幅，提示"已转换为 X 模式"，并带「放弃转换」按钮，可一键回到切换前的内容与引擎
+
+### 7.4 监听切换事件
+
+控制器会在切换流程中派发以下 `CustomEvent`，可在 `document` 上监听：
+
+| 事件 | 时机 | `event.detail` |
+| --- | --- | --- |
+| `yii2md:beforeSwitch` | 用户已确认，转换前 | `{ instanceId, from, to }` |
+| `yii2md:afterSwitch`  | 转换并重渲染完成 | `{ instanceId, from, to }` |
+| `yii2md:revert`       | 用户点击放弃转换 | `{ instanceId, restoredEngine }` |
+
+```html
+<script>
+document.addEventListener('yii2md:afterSwitch', e => {
+    console.log('引擎已切到', e.detail.to);
+});
+</script>
+```
+
+### 7.5 编程式 API
+
+加载完成后，全局会暴露：
+
+```js
+window.Yii2Markdown.DualEngine.init(opts);     // 一般由组件自动调用
+window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'|'vditor'); // 编程式切换
+window.Yii2Markdown.DualEngine.revert(id);     // 等价于点击放弃转换
+window.Yii2Markdown.Convert.mdToHtml(md);      // 同步 Markdown → HTML
+window.Yii2Markdown.Convert.htmlToMd(html);    // 同步 HTML → Markdown
+```
+
+更详细的迁移与字段持久化建议见 [docs/migration-guide.md](./migration-guide.md)。

@@ -13,7 +13,9 @@
 | `tagId` | `string` | 组件根字段 ID |
 | `tagType` | `string` | 可选 `div` 或 `textarea`，当前默认使用 `div` 包裹隐藏字段 |
 | `tagAttribute` | `array` | 底层隐藏字段的 HTML 属性 |
-| `options` | `array` | 传给 Cherry Markdown 的配置以及扩展字段 |
+| `options` | `array` | 传给底层引擎（Cherry / Vditor）的配置以及扩展字段 |
+| `isMarkdown` | `bool` | **v1.3.0+**：`true` 启动 Cherry Markdown 源码模式（默认），`false` 启动 Vditor WYSIWYG |
+| `switchable` | `bool` | **v1.3.0+**：是否在工具栏注入"切换模式"按钮，默认 `true` |
 
 ## `options` 常见键
 
@@ -83,9 +85,26 @@
 - 保留移动端预览和复制侧边栏能力
 - 高度默认约为 `80vh`
 
+## 双引擎相关（v1.3.0+）
+
+详细配置见 [docs/usage.md §7](./usage.md#7-双引擎markdown-) 与 [docs/migration-guide.md](./migration-guide.md)。
+
+| 提交字段 | 说明 |
+| --- | --- |
+| `{attribute}_md` | 当前 Markdown 文本（Cherry 模式直接来自源码；Vditor 模式由 `Turndown` 转换） |
+| `{attribute}_html` | 当前 HTML 文本（Vditor 模式直接来自渲染；Cherry 模式由 `marked` 转换） |
+
+| 全局对象 | 类型 | 用途 |
+| --- | --- | --- |
+| `window.Yii2Markdown.DualEngine` | `object` | 提供 `init / switchTo / revert` |
+| `window.Yii2Markdown.Convert` | `object` | 提供 `mdToHtml / htmlToMd` |
+| `window.cherry{N}` | `Cherry` 实例 | 当 N 号实例运行 Cherry 时存在 |
+| `window.vditor{N}` | `Vditor` 实例 | 当 N 号实例运行 Vditor 时存在 |
+
 ## 配置建议
 
 - 在表单页优先使用 `model + attribute`
 - 上传文件时始终传入 `options.url`
 - 若宿主系统已有自己的草稿机制，可考虑后续把本地草稿逻辑抽为可开关配置
 - 若页面本身支持深色模式，建议统一设置根节点 `data-theme`
+- 双引擎并存场景：建议把 `{attribute}_md` 作为权威源，`{attribute}_html` 作为渲染缓存
