@@ -20,6 +20,15 @@ vendor/
 composer.lock
 composer.phar
 
+# ===== npm / Jest / Playwright =====
+# 与 composer 策略一致，不提交 npm lock
+package-lock.json
+npm-debug.log*
+.jest-cache/
+playwright-report/
+playwright/.cache/
+test-results/
+
 # ===== PHPUnit / 测试产物 =====
 .phpunit.cache/
 .phpunit.result.cache

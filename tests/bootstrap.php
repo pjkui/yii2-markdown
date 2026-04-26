@@ -9,6 +9,12 @@ require dirname(__DIR__) . '/vendor/yiisoft/yii2/Yii.php';
 \Yii::setAlias('@tests', __DIR__);
 \Yii::setAlias('@pjkui/markdown', dirname(__DIR__) . '/src');
 
+// 确保运行时目录存在（AssetManager basePath 必须是已存在目录）
+$runtimeAssets = __DIR__ . '/runtime/assets';
+if (!is_dir($runtimeAssets)) {
+    mkdir($runtimeAssets, 0777, true);
+}
+
 new \yii\web\Application([
     'id' => 'yii2-markdown-tests',
     'basePath' => dirname(__DIR__),
@@ -20,7 +26,7 @@ new \yii\web\Application([
             'scriptUrl' => '/index-test.php',
         ],
         'assetManager' => [
-            'basePath' => dirname(__DIR__) . '/tests/runtime/assets',
+            'basePath' => $runtimeAssets,
             'baseUrl' => '/assets',
             'bundles' => [
                 'yii\web\JqueryAsset' => false,
