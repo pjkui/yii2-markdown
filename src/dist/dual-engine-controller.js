@@ -678,8 +678,9 @@
                     value: beforeValue,
                     time: Date.now(),
                 };
-                // 额外兜底：保存到 lastKnownValue，即使 mdInput/snapshot 都失效也能恢复。
-                state.lastKnownValue = beforeValue;
+                // 额外兜底：仅当 beforeValue 非空时才更新 lastKnownValue，
+                // 防止空串覆盖掉之前成功保存到的值。
+                if (beforeValue) { state.lastKnownValue = beforeValue; }
 
                 dispatch(state.root, 'yii2md:beforeSwitch', { instanceId: id, from: fromEngine, to: to });
 
@@ -689,13 +690,24 @@
                     // cherry: md → 给 vditor 喂 md（vditor wysiwyg 直接接受 md）
                     newValue = beforeValue;
                 } else if (fromEngine === 'vditor' && to === 'cherry') {
-                    // vditor → cherry: 通过 getHTML → htmlToMarkdown 得到 md
-                    var html = '';
-                    try {
-                        var v = global['vditor_' + id];
-                        if (v && typeof v.getHTML === 'function') html = v.getHTML() || '';
-                    } catch (e) {}
-                    newValue = conv ? conv.htmlToMarkdown(html) : beforeValue;
+                    // vditor → cherry：wysiwyg 模式下 getValue() 直接返回 markdown，
+                    // 优先用 beforeValue（已是 markdown），避免 getHTML() → htmlToMarkdown() 的转换损耗。
+                    if (beforeValue) {
+                        newValue = beforeValue;
+                    } else {
+                        // beforeValue 为空时的兜底：尝试直接读 getValue()，再失败才走 HTML 转换
+                        var mdFromV = '';
+                        try {
+                            var v2 = global['vditor_' + id];
+                            if (v2 && typeof v2.getValue === 'function') mdFromV = v2.getValue() || '';
+                        } catch (e) {}
+                        newValue = mdFromV || (conv ? conv.htmlToMarkdown((function(){
+                            try {
+                                var v3 = global['vditor_' + id];
+                                return (v3 && typeof v3.getHTML === 'function') ? (v3.getHTML() || '') : '';
+                            } catch(e) { return ''; }
+                        })()) : beforeValue);
+                    }
                 } else {
                     newValue = beforeValue;
                 }
