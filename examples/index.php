@@ -188,6 +188,7 @@ $view->beginPage();
     <div class="nav">
         <a href="/">编辑器</a>
         <a href="/?page=preview">预览</a>
+        <a href="/dual">双引擎</a>
         <span>· 上传接口：<code>/upload.php</code></span>
     </div>
     <?= $body ?>

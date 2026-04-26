@@ -254,7 +254,7 @@ $view->beginPage();
     <div class="nav">
         <a href="/">编辑器</a>
         <a href="/?page=preview">预览</a>
-        <a href="/dual-engine-demo.php">双引擎</a>
+        <a href="/dual">双引擎</a>
         <span>· 上传接口：<code>/upload.php</code></span>
         <span>· 文档：<a href="https://github.com/pjkui/yii2-markdown/blob/master/docs/migration-guide.md" target="_blank">migration-guide</a></span>
     </div>
