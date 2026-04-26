@@ -153,18 +153,30 @@
     }
 
     function readEngineValue(state) {
+        // 返回语义：
+        //   字符串  — 引擎当前内容（可能是 ''）
+        //   null    — 引擎尚未就绪 / 读取失败（caller 应保留原值，不要覆盖）
         try {
             if (state.engine === 'cherry') {
                 var c = global['cherry' + state.id];
-                return c && typeof c.getMarkdown === 'function' ? (c.getMarkdown() || '') : '';
+                if (!c || typeof c.getMarkdown !== 'function') return null;
+                return c.getMarkdown() || '';
             }
             if (state.engine === 'vditor') {
                 var v = global['vditor_' + state.id];
-                if (v && typeof v.getValue === 'function') return v.getValue() || '';
-                if (v && typeof v.getHTML === 'function') return v.getHTML() || '';
+                if (!v) return null;
+                if (typeof v.getValue === 'function') return v.getValue() || '';
+                if (typeof v.getHTML === 'function') return v.getHTML() || '';
+                return null;
             }
-        } catch (e) { warn('readEngineValue failed', e); }
-        return '';
+        } catch (e) {
+            // Vditor 在 after 回调之前被读取会抛 currentMode=undefined；
+            // 此时视为"尚未就绪"而不是"空内容"，避免把 hidden _md 覆盖成空字符串
+            // —— 这曾经导致 R4（N=10 表格来回切换）读到空 md。
+            warn('readEngineValue failed', e);
+            return null;
+        }
+        return null;
     }
 
     function setEngineValue(state, value) {
@@ -217,6 +229,10 @@
     function syncHidden(state) {
         var conv = getConverter();
         var current = readEngineValue(state);
+        // readEngineValue 返回 null 表示"引擎还没就绪"：跳过同步，保留上一轮写入的 hidden 值。
+        // 否则连续切换时会把还没 ready 的 vditor 读成空串，再覆盖 mdInput.value = ''，
+        // 导致用户内容蒸发（R4 曾在 N=10 切换后打中这个坑）。
+        if (current === null) return;
         if (!state.mdInput || !state.htmlInput) return;
         if (state.engine === 'cherry') {
             state.mdInput.value = current || '';
@@ -397,6 +413,45 @@
             }
         });
 
+        // ============================================================
+        // 引擎就绪后才翻牌：把 data-engine 切换 / state 更新 / 隐藏字段同步
+        // 都推迟到新引擎真正可读，避免「外部 waitForFunction(data-engine===vditor)
+        // 立刻读 getValue/getHTML 拿到 undefined / 空字符串」的竞态。
+        // 这个语义保证「data-engine 翻牌」是一个原子的「ready」信号。
+        // ============================================================
+        function markReady() {
+            // 提前把已知的目标 markdown 写入 _md / _html 隐藏字段。
+                // R4：连续 10 次切换最容易暴露「翻牌后 syncHidden 还没跑完」的空值窗口。
+                if (state.mdInput || state.htmlInput) {
+                    var preMd = String(valueForTarget || '');
+                    // 兜底：valueForTarget 为空时，尝试从新引擎回读（R4 连续切换保护）
+                    if (!preMd) {
+                        try {
+                            if (targetEngine === 'cherry') {
+                                var c2 = global['cherry' + instanceId];
+                                if (c2 && typeof c2.getMarkdown === 'function') preMd = c2.getMarkdown() || '';
+                            } else if (targetEngine === 'vditor') {
+                                var v2 = global['vditor_' + instanceId];
+                                if (v2 && typeof v2.getValue === 'function') preMd = v2.getValue() || '';
+                            }
+                        } catch (e) {}
+                    }
+                    var conv0 = getConverter();
+                    var preHtml = conv0 ? conv0.markdownToHtml(preMd) : '';
+                    if (state.mdInput) state.mdInput.value = preMd;
+                    if (state.htmlInput) state.htmlInput.value = preHtml;
+                }
+
+            root.setAttribute('data-engine', targetEngine);
+            root.setAttribute('data-is-markdown', targetEngine === 'cherry' ? '1' : '0');
+            root.classList.remove('yii2-markdown-root--cherry', 'yii2-markdown-root--vditor');
+            root.classList.add('yii2-markdown-root--' + targetEngine);
+
+            state.engine = targetEngine;
+            bindLiveSync(state);
+            refreshToolbar(state);
+        }
+
         // 创建新挂点
         var mountId, mount;
         if (targetEngine === 'cherry') {
@@ -419,6 +474,8 @@
                 warn('new Cherry failed', e);
                 return false;
             }
+            // Cherry 构造是同步的：getMarkdown 立刻可用。
+            markReady();
         } else {
             mountId = 'vditor' + instanceId;
             mount = doc.createElement('div');
@@ -431,36 +488,46 @@
                 return false;
             }
             try {
+                // Vditor 是异步初始化（after 回调里 internal state / DOM 才齐全），
+                // 因此 markReady 也推迟到 after 里：data-engine 翻牌 = 引擎可用。
+                // 把初始值通过 `value` 选项传入（vditor 内部会在 after 之前就把它灌进编辑器），
+                // 比"new 之后再 setValue"更可靠 —— 后者在某些初始化路径下会被 vditor 的
+                // 内部 reset 覆盖（R4 表格 10 次切换中观察到 setValue 后立即 getValue 仍空）。
                 var vd = new global.Vditor(mountId, {
                     mode: 'wysiwyg',
                     cache: { enable: false },
+                    value: valueForTarget || '',
                     after: function () {
-                        try { vd.setValue(valueForTarget || ''); } catch (e) {}
+                        try {
+                            // 双保险：value 选项在多数版本下足够，但若被 vditor 内部 reset 清空，
+                            // 这里再灌一次。两次写入不会出现可见的内容跳变。
+                            if (!vd.getValue() && valueForTarget) {
+                                vd.setValue(valueForTarget);
+                            }
+                        } catch (e) {}
+                        global['vditor_' + instanceId] = vd;
+                        markReady();
                     },
                     input: function (val) {
                         if (state.input) state.input.value = val || '';
                     },
                 });
-                global['vditor_' + instanceId] = vd;
             } catch (e) {
                 warn('new Vditor failed', e);
                 return false;
             }
         }
 
-        // 更新 root 标记
-        root.setAttribute('data-engine', targetEngine);
-        root.setAttribute('data-is-markdown', targetEngine === 'cherry' ? '1' : '0');
-        root.classList.remove('yii2-markdown-root--cherry', 'yii2-markdown-root--vditor');
-        root.classList.add('yii2-markdown-root--' + targetEngine);
-
-        state.engine = targetEngine;
-        bindLiveSync(state);
-        refreshToolbar(state);
-        // 重新拿一次 input（targetEngine 切换可能影响隐藏 input 的位置；当前我们保留旧 input 即可）
-        // 同步一次隐藏字段
-        // 等待引擎初始化完成后再同步
-        setTimeout(function () { syncHidden(state); }, 80);
+        // 等引擎真正就绪后再二次同步一次（覆盖 Vditor 第一次 input 事件之前的窗口期）。
+        waitFor(function () {
+            if (state.engine !== targetEngine) return false; // markReady 还没跑
+            if (targetEngine === 'cherry') {
+                var c = global['cherry' + instanceId];
+                return !!(c && typeof c.getMarkdown === 'function');
+            }
+            var v = global['vditor_' + instanceId];
+            return !!(v && typeof v.getValue === 'function');
+        }, 5000).then(function () { syncHidden(state); });
         return true;
     }
 
@@ -592,12 +659,25 @@
                 if (!ok) return false;
 
                 var fromEngine = state.engine;
+                // readEngineValue 可能返回 null（引擎未就绪 / 读失败）；
+                // 在切换路径上，用户已经点了确认按钮，不能让 null 蒸发内容：
+                // 退而求其次，从上一轮 hidden.value / snapshot.value / lastKnownValue 恢复。
                 var beforeValue = readEngineValue(state);
+                if (beforeValue === null) {
+                    beforeValue = (state.mdInput && state.mdInput.value)
+                            || (state.snapshot && state.snapshot.value)
+                            || (state.lastKnownValue)
+                            || '';
+                }
+                // 同步写回 hidden 字段，防止「读不到 → 写不进 → snapshot 也空」的级联。
+                if (beforeValue && state.mdInput) state.mdInput.value = beforeValue;
                 state.snapshot = {
                     engine: fromEngine,
                     value: beforeValue,
                     time: Date.now(),
                 };
+                // 额外兜底：保存到 lastKnownValue，即使 mdInput/snapshot 都失效也能恢复。
+                state.lastKnownValue = beforeValue;
 
                 dispatch(state.root, 'yii2md:beforeSwitch', { instanceId: id, from: fromEngine, to: to });
 
