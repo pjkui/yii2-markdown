@@ -26,6 +26,8 @@ YII2_MARKDOWN_DEMO=1 php -S 127.0.0.1:8080 -t examples examples/router.php
 | --- | --- |
 | http://127.0.0.1:8080/ | **Editor 演示**（ActiveForm + 提交回显） |
 | http://127.0.0.1:8080/?page=preview | **Preview 只读预览演示** |
+| http://127.0.0.1:8080/dual-engine-demo.php | **双引擎演示**（Cherry / Vditor 切换、备份/放弃、双 hidden 字段、事件日志） |
+| http://127.0.0.1:8080/?page=dual | 双引擎演示（短链） |
 | http://127.0.0.1:8080/upload.php | 模拟文件上传接口（由编辑器内部调用） |
 
 停止服务：在启动的终端按 `Ctrl+C`。
@@ -67,14 +69,15 @@ YII2_MARKDOWN_DEMO=1 php -S 127.0.0.1:8080 -t examples examples/router.php
 
 ```text
 examples/
-  _guard.php     # 运行时守卫（SAPI / 环境变量 / 来源 IP 检查）
-  router.php     # PHP 内置服务器的路由入口
-  index.php      # Demo 主入口，最小 Yii2 Web 应用
-  upload.php     # 受限的模拟上传接口
-  assets/        # 运行时 AssetManager 发布目录（已在 .gitignore）
-  uploads/       # 演示上传文件存放目录（已在 .gitignore）
-    .htaccess    # 防执行 + 防列举
-    index.html   # 目录兜底
+  _guard.php             # 运行时守卫（SAPI / 环境变量 / 来源 IP 检查）
+  router.php             # PHP 内置服务器的路由入口
+  index.php              # Demo 主入口，最小 Yii2 Web 应用
+  dual-engine-demo.php   # 双引擎演示（v1.3.0+，Cherry/Vditor 切换 + 备份/放弃）
+  upload.php             # 受限的模拟上传接口
+  assets/                # 运行时 AssetManager 发布目录（已在 .gitignore）
+  uploads/               # 演示上传文件存放目录（已在 .gitignore）
+    .htaccess            # 防执行 + 防列举
+    index.html           # 目录兜底
   README.md
 ```
 

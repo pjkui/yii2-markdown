@@ -30,5 +30,16 @@ if ($requestUri === '/upload.php' || $requestUri === '/upload') {
     return true;
 }
 
+// 双引擎 demo 入口（可通过 /dual-engine-demo.php、/dual、/?page=dual 三种方式访问）
+if ($requestUri === '/dual-engine-demo.php' || $requestUri === '/dual') {
+    require __DIR__ . '/dual-engine-demo.php';
+    return true;
+}
+$page = $_GET['page'] ?? '';
+if ($requestUri === '/' && $page === 'dual') {
+    require __DIR__ . '/dual-engine-demo.php';
+    return true;
+}
+
 // 其余请求统一交给 index.php
 require __DIR__ . '/index.php';
