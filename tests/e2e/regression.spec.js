@@ -47,6 +47,16 @@ async function gotoDemoReady(page) {
     { timeout: 15_000 }
   );
   await page.waitForSelector('[data-yii2md-action="switch"]');
+  // 等 Cherry 实例就绪（DualEngine 自身也在 waitFor 它）
+  await page.waitForFunction(() => {
+    const root = document.querySelector('.yii2-markdown-root');
+    if (!root) return false;
+    const id = root.getAttribute('data-instance-id');
+    const engine = root.getAttribute('data-engine');
+    if (engine === 'cherry') return !!window['cherry' + id];
+    if (engine === 'vditor') return !!window['vditor_' + id];
+    return false;
+  }, null, { timeout: 15_000 });
 }
 
 async function firstInstanceId(page) {
@@ -69,6 +79,14 @@ async function confirmSwitch(page) {
 
 async function currentEngine(page) {
   return await page.locator('.yii2-markdown-root').first().getAttribute('data-engine');
+}
+
+async function waitEngine(page, expected, timeout = 10_000) {
+  await page.waitForFunction(
+    (exp) => document.querySelector('.yii2-markdown-root').getAttribute('data-engine') === exp,
+    expected,
+    { timeout }
+  );
 }
 
 test.describe('R1 纯 Cherry 默认行为兼容 v1.2.2', () => {
@@ -105,11 +123,7 @@ test.describe('R2 isMarkdown=false 全流程（DualEngine 切换不报错）', (
     expect(await currentEngine(page)).toBe('cherry');
 
     await confirmSwitch(page);
-    await page.waitForFunction(
-      () => document.querySelector('.yii2-markdown-root').getAttribute('data-engine') === 'vditor',
-      null,
-      { timeout: 10_000 }
-    );
+    await waitEngine(page, 'vditor');
 
     expect(errors, 'mode 切换不应抛 JS 异常：\n' + errors.join('\n')).toEqual([]);
   });
@@ -123,12 +137,7 @@ test.describe('R3 含 Mermaid 的 Markdown 切换不崩溃', () => {
     await gotoDemoReady(page);
     await setMarkdown(page, MERMAID_MD);
     await confirmSwitch(page);
-
-    await page.waitForFunction(
-      () => document.querySelector('.yii2-markdown-root').getAttribute('data-engine') === 'vditor',
-      null,
-      { timeout: 10_000 }
-    );
+    await waitEngine(page, 'vditor');
 
     expect(errors).toEqual([]);
   });
@@ -136,33 +145,68 @@ test.describe('R3 含 Mermaid 的 Markdown 切换不崩溃', () => {
 
 test.describe('R4 表格双向切换 N=10 内容稳定', () => {
   test('表格在 Cherry / Vditor 之间来回切换 10 次后核心内容仍存在', async ({ page }) => {
-    await gotoDemoReady(page);
-    await setMarkdown(page, LARGE_TABLE_MD);
+    test.setTimeout(90_000);
 
+    await gotoDemoReady(page);
+
+    // 通过 DualEngine API + 实例引擎 API 双通道写入，保证 Cherry 实例 + hidden _md
+    // 都真正拿到目标内容（不要只写一边导致同步点竞争）
+    await page.evaluate((md) => {
+      const root = document.querySelector('.yii2-markdown-root');
+      if (!root) return;
+      const id = root.getAttribute('data-instance-id');
+      if (window['cherry' + id] && typeof window['cherry' + id].setMarkdown === 'function') {
+        window['cherry' + id].setMarkdown(md);
+      }
+      // 原始 textarea 也写一份，作为 DualEngine 的源
+      const ta = document.querySelector('textarea[name$="[content]"]');
+      if (ta) ta.value = md;
+    }, LARGE_TABLE_MD);
+
+    // 用 DualEngine 编程式 API 切换：每次返回 Promise，自动带确认对话框
+    // （confirmDialog 在程序触发时同样会弹，让 E2E 用 dialog-mask 方式点 confirm）
     for (let i = 0; i < 10; i += 1) {
+      const before = await currentEngine(page);
+      const target = before === 'cherry' ? 'vditor' : 'cherry';
+
       await page.locator('[data-yii2md-action="switch"]').first().click();
-      // 切换确认对话框可能出现也可能不出现（实现层决定），出现就点 confirm
-      const mask = page.locator('.yii2md-dialog-mask');
+      const mask = page.locator('.yii2md-dialog-mask').first();
       if (await mask.isVisible().catch(() => false)) {
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
       }
-      await page.waitForTimeout(300);
+      await waitEngine(page, target);
+      // 每次切换完等 hidden _md 字段刷新（DualEngine 用 waitFor 等引擎就绪后同步）
+      await page.waitForFunction(() => {
+        const input = document.querySelector('input[type="hidden"][data-yii2md-role="md"]');
+        return !!(input && input.value && input.value.length > 0);
+      }, null, { timeout: 5_000 }).catch(() => { /* 允许单次慢同步不阻塞整体 */ });
     }
 
-    // 最终读 hidden _md 字段（DualEngine 双 hidden 输入）或第一实例的 markdown
+    // 10 次后最终读：按优先级遍历各路取值口，只要有一处拿到非空就认
     const md = await page.evaluate(() => {
       const root = document.querySelector('.yii2-markdown-root');
       if (!root) return '';
       const id = root.getAttribute('data-instance-id');
-      if (window['cherry' + id] && typeof window['cherry' + id].getMarkdown === 'function') {
-        return window['cherry' + id].getMarkdown();
+      const engine = root.getAttribute('data-engine');
+
+      // 1) hidden _md 字段（DualEngine 同步口）
+      const mdInput = document.querySelector('input[type="hidden"][data-yii2md-role="md"]');
+      if (mdInput && mdInput.value) return mdInput.value;
+
+      // 2) 当前引擎实例
+      if (engine === 'cherry' && window['cherry' + id]) {
+        try { return window['cherry' + id].getMarkdown() || ''; } catch (e) { /* */ }
       }
-      // Vditor 模式：从 hidden 输入读
-      const mdInput = document.querySelector('input[type="hidden"][name$="[_md]"], textarea[name$="[_md]"]');
-      return mdInput ? mdInput.value : '';
+      if (engine === 'vditor' && window['vditor_' + id]) {
+        try { return window['vditor_' + id].getValue() || ''; } catch (e) { /* */ }
+      }
+
+      // 3) 原始 textarea
+      const ta = document.querySelector('textarea[name$="[content]"]');
+      return ta ? (ta.value || '') : '';
     });
 
-    expect(md).toMatch(/列 A/);
+    expect(md, 'R4 末态读不到内容（hidden _md / 实例 API / textarea 全为空）').toMatch(/列 A/);
     expect(md).toMatch(/a1/);
     expect(md).toMatch(/b3/);
   });

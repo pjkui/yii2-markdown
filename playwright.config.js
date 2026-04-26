@@ -4,7 +4,8 @@ const { defineConfig, devices } = require('@playwright/test');
 /**
  * Playwright 配置：
  * - 使用 tests/run-server.sh 启动 PHP 内置 server（examples 目录）
- * - baseURL 固定 http://localhost:8080
+ * - baseURL / webServer.url 都用 127.0.0.1，避免 chromium headless 把
+ *   localhost 解析成 ::1（PHP 内置 server 仅 bind IPv4 时会 ERR_CONNECTION_REFUSED）
  * - testDir 指向 tests/e2e
  *
  * 说明：chromium project 显式声明 channel: 'chromium'，让它使用完整 Chromium
@@ -20,7 +21,7 @@ module.exports = defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:8080',
+    baseURL: 'http://127.0.0.1:8080',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'off',
@@ -40,7 +41,7 @@ module.exports = defineConfig({
   ],
   webServer: {
     command: 'bash tests/run-server.sh',
-    url: 'http://localhost:8080/',
+    url: 'http://127.0.0.1:8080/',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
     stdout: 'pipe',
