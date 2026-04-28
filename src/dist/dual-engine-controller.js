@@ -648,6 +648,30 @@
             if (!state) { warn('instance not found: ' + id); return Promise.resolve(false); }
             if (state.engine === to) return Promise.resolve(true);
 
+            // 【R4 根因修复】在弹确认框之前，先把当前引擎的真实值强制同步到 mdInput。
+            // 这样即使引擎在 rerenderAs 里被销毁、或在异步回调里 getValue 返回空，
+            // mdInput.value 已经是最新的内容，兜底链一定不会拿到空串。
+            (function forceSync() {
+                try {
+                    if (state.engine === 'cherry' && global['cherry' + state.id]) {
+                        var c = global['cherry' + state.id];
+                        if (typeof c.getMarkdown === 'function') {
+                            var v = c.getMarkdown() || '';
+                            if (v && state.mdInput) state.mdInput.value = v;
+                            if (v) state.lastKnownValue = v;
+                        }
+                    } else if (state.engine === 'vditor' && global['vditor_' + state.id]) {
+                        var v2 = global['vditor_' + state.id];
+                        // wysiwyg 模式 getValue() 返回 markdown
+                        if (typeof v2.getValue === 'function') {
+                            var v = v2.getValue() || '';
+                            if (v && state.mdInput) state.mdInput.value = v;
+                            if (v) state.lastKnownValue = v;
+                        }
+                    }
+                } catch (e) {}
+            })();
+
             return confirmDialog({
                 title: '切换编辑模式',
                 message: to === 'vditor'
@@ -678,8 +702,9 @@
                     value: beforeValue,
                     time: Date.now(),
                 };
-                // 额外兜底：保存到 lastKnownValue，即使 mdInput/snapshot 都失效也能恢复。
-                state.lastKnownValue = beforeValue;
+                // 额外兜底：仅当 beforeValue 非空时才更新 lastKnownValue，
+                // 防止空串覆盖掉之前成功保存到的值。
+                if (beforeValue) { state.lastKnownValue = beforeValue; }
 
                 dispatch(state.root, 'yii2md:beforeSwitch', { instanceId: id, from: fromEngine, to: to });
 
@@ -689,13 +714,24 @@
                     // cherry: md → 给 vditor 喂 md（vditor wysiwyg 直接接受 md）
                     newValue = beforeValue;
                 } else if (fromEngine === 'vditor' && to === 'cherry') {
-                    // vditor → cherry: 通过 getHTML → htmlToMarkdown 得到 md
-                    var html = '';
-                    try {
-                        var v = global['vditor_' + id];
-                        if (v && typeof v.getHTML === 'function') html = v.getHTML() || '';
-                    } catch (e) {}
-                    newValue = conv ? conv.htmlToMarkdown(html) : beforeValue;
+                    // vditor → cherry：wysiwyg 模式下 getValue() 直接返回 markdown，
+                    // 优先用 beforeValue（已是 markdown），避免 getHTML() → htmlToMarkdown() 的转换损耗。
+                    if (beforeValue) {
+                        newValue = beforeValue;
+                    } else {
+                        // beforeValue 为空时的兜底：尝试直接读 getValue()，再失败才走 HTML 转换
+                        var mdFromV = '';
+                        try {
+                            var v2 = global['vditor_' + id];
+                            if (v2 && typeof v2.getValue === 'function') mdFromV = v2.getValue() || '';
+                        } catch (e) {}
+                        newValue = mdFromV || (conv ? conv.htmlToMarkdown((function(){
+                            try {
+                                var v3 = global['vditor_' + id];
+                                return (v3 && typeof v3.getHTML === 'function') ? (v3.getHTML() || '') : '';
+                            } catch(e) { return ''; }
+                        })()) : beforeValue);
+                    }
                 } else {
                     newValue = beforeValue;
                 }
