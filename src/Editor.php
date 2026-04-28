@@ -494,6 +494,24 @@ class Editor extends Widget
         }
     } catch(e) { console.warn('[Markdown] 草稿读取失败:', e); }
 
+    // ========= 双引擎切换按钮：注入到 toolbars.customMenu =========
+    // createMenuHook 返回构造函数，需要 new 实例化
+    var SwitchToVditorMenu = new (Cherry.createMenuHook('switchToVditor', {
+        name: '切换到所见即所得',
+        iconName: 'fullscreen',
+        onClick: function(selection) {
+            if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
+                window.Yii2Markdown.DualEngine.switchTo({$instance_id}, 'vditor');
+            }
+            return selection;
+        }
+    }));
+    conf.toolbars = conf.toolbars || {};
+    conf.toolbars.customMenu = conf.toolbars.customMenu || {};
+    conf.toolbars.customMenu.switchToVditor = SwitchToVditorMenu;
+    conf.toolbars.toolbar = conf.toolbars.toolbar || [];
+    conf.toolbars.toolbar.push('|', 'switchToVditor');
+
     // ========= 实例化 =========
     var config = Object.assign({}, conf, { value: initValue });
     var cherry = new Cherry(config);
