@@ -235,7 +235,7 @@ class Editor extends Widget
                    ],
                    '|',
                    'graph',
-                   'switchModel',
+                   '|',
                    'codeTheme',
                    'export',
                    'settings',

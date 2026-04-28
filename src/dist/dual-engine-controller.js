@@ -419,6 +419,34 @@
         // 立刻读 getValue/getHTML 拿到 undefined / 空字符串」的竞态。
         // 这个语义保证「data-engine 翻牌」是一个原子的「ready」信号。
         // ============================================================
+        function injectSwitchBtn(state) {
+            if (!state || !state.root) return;
+            var root = state.root;
+            if (root.querySelector('[data-yii2md-action="switch"]')) return; // avoid duplicate
+            var btn = doc.createElement('button');
+            btn.className = 'yii2md-switch-btn';
+            btn.setAttribute('data-yii2md-action', 'switch');
+            btn.innerHTML = state.engine === 'cherry' ? 'WYSIWYG' : 'Markdown';
+            btn.title = state.engine === 'cherry' ? '切换到所见即所得' : '切换到 Markdown 源码';
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var target = state.engine === 'cherry' ? 'vditor' : 'cherry';
+                if (typeof DualEngine !== 'undefined' && DualEngine.switchTo) {
+                    DualEngine.switchTo(state.id, target);
+                } else {
+                    dispatch(root, 'yii2md:switch', { to: target });
+                }
+            });
+            // Insert into toolbar
+            var tb = root.querySelector('.cherry-toolbar, .vditor-toolbar');
+            if (tb) {
+                tb.appendChild(btn);
+                state.toolbar = tb;
+            } else {
+                root.insertBefore(btn, root.firstChild);
+            }
+        }
+
         function markReady() {
             // 提前把已知的目标 markdown 写入 _md / _html 隐藏字段。
                 // R4：连续 10 次切换最容易暴露「翻牌后 syncHidden 还没跑完」的空值窗口。
@@ -450,6 +478,7 @@
             state.engine = targetEngine;
             bindLiveSync(state);
             refreshToolbar(state);
+            injectSwitchBtn(state);
         }
 
         // 创建新挂点
