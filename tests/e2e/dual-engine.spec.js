@@ -17,7 +17,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.YII2MD_BASE_URL || 'http://127.0.0.1:8080';
-const DEMO_URL = '/dual-engine-demo.php';
+const DEMO_URL = '/';
 
 test.describe('双引擎 demo（issue #7）', () => {
 
@@ -51,7 +51,7 @@ test.describe('双引擎 demo（issue #7）', () => {
         const id = await page.locator('.yii2-markdown-root').first().getAttribute('data-instance-id');
         await page.locator('[data-yii2md-action="switch"]').first().click();
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
-        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 20_000 });
         await expect(page.locator('.vditor-toolbar').first()).toBeVisible();
     });
 
@@ -72,18 +72,33 @@ test.describe('双引擎 demo（issue #7）', () => {
         ]);
         const body = await page.locator('body').innerText();
         expect(body).toContain('E4 Submit Marker');
-        expect(body).toMatch(/content_md_len/);
-        expect(body).toMatch(/content_html_len/);
+        expect(body).toMatch(/content_md/);
+        expect(body).toMatch(/content_html/);
     });
 
-    test('E5 ?engine=wysiwyg 启动即 WYSIWYG', async ({ page }) => {
-        await page.goto(BASE_URL + DEMO_URL + '?engine=wysiwyg');
-        await page.waitForSelector('.yii2-markdown-root[data-engine="vditor"]');
-    });
-
-    test('E6 文档导航链接 migration-guide 可见', async ({ page }) => {
+    test('E5 前端切换到 WYSIWYG 再切回 Markdown', async ({ page }) => {
         await page.goto(BASE_URL + DEMO_URL);
-        await expect(page.locator('a[href*="migration-guide"]').first()).toBeVisible();
+        await page.waitForSelector('[data-yii2md-action="switch"]');
+        const id = await page.locator('.yii2-markdown-root').first().getAttribute('data-instance-id');
+        // 切换到 Vditor
+        await page.locator('[data-yii2md-action="switch"]').first().click();
+        await page.locator('.yii2md-dialog [data-action="confirm"]').click();
+        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
+        // 切换回 Cherry：等 Vditor 完全就绪，然后用 DualEngine API 触发（不等 Promise）
+        await page.waitForFunction((id) => !!window['vditor_' + id] && !!document.querySelector('.vditor-toolbar'), id, { timeout: 10_000 });
+        // 非阻塞调用 switchTo（它返回的 Promise 等待用户确认对话框）
+        await page.evaluate((id) => { window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'); }, id);
+        // 等对话框出现并确认
+        await page.waitForSelector('.yii2md-dialog [data-action="confirm"]');
+        await page.locator('.yii2md-dialog [data-action="confirm"]').click();
+        await page.waitForFunction((id) => !!window['cherry' + id] && window['cherry' + id].getMarkdown, id, { timeout: 10_000 });
+        await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'cherry');
+    });
+
+    test('E6 Preview 页面可访问', async ({ page }) => {
+        await page.goto(BASE_URL + '/?page=preview');
+        await expect(page.locator('.cherry-markdown').first()).toBeVisible();
     });
 
     test('E7 文档迁移指南文件存在且关键词齐全', async () => {

@@ -494,28 +494,40 @@ class Editor extends Widget
         }
     } catch(e) { console.warn('[Markdown] 草稿读取失败:', e); }
 
-    // ========= 双引擎切换按钮：注入到 toolbars.customMenu =========
-    // createMenuHook 返回构造函数，需要 new 实例化
-    var SwitchToVditorMenu = new (Cherry.createMenuHook('switchToVditor', {
-        name: '切换到所见即所得',
-        iconName: 'fullscreen',
-        onClick: function(selection) {
-            if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
-                window.Yii2Markdown.DualEngine.switchTo({$instance_id}, 'vditor');
-            }
-            return selection;
-        }
-    }));
-    conf.toolbars = conf.toolbars || {};
-    conf.toolbars.customMenu = conf.toolbars.customMenu || {};
-    conf.toolbars.customMenu.switchToVditor = SwitchToVditorMenu;
-    conf.toolbars.toolbar = conf.toolbars.toolbar || [];
-    conf.toolbars.toolbar.push('|', 'switchToVditor');
+    // ========= 双引擎切换按钮：Cherry 渲染后注入到工具栏 =========
+    // 不使用 createMenuHook（与部分版本不兼容），改用 afterInit 回调手动注入 DOM
+    conf.toolbars = conf.toolbars || {}
+    conf.toolbars.toolbar = conf.toolbars.toolbar || []
+
+    var _afterInit = conf.afterInit || function() {}
+    // 不依赖 afterInit（部分版本不支持），改用实例化后延迟注入
+    conf.afterInit = function() {
+        _afterInit.call(this)
+    }
 
     // ========= 实例化 =========
     var config = Object.assign({}, conf, { value: initValue });
     var cherry = new Cherry(config);
     window.cherry{$instance_id} = cherry;
+
+    // ========= 双引擎切换按钮：注入到 Cherry 工具栏 =========
+    try {
+        var toolbar = document.querySelector('#cherry{$instance_id} .cherry-toolbar .toolbar-left');
+        if (toolbar) {
+            var btn = document.createElement('span');
+            btn.className = 'cherry-toolbar-button';
+            btn.title = '切换到所见即所得';
+            btn.setAttribute('data-yii2md-action', 'switch');
+            btn.innerHTML = '<svg viewBox="0 0 40 40" width="16" height="16"><path d="M10 4h20l-6 6M10 36h20l-6-6M36 10v20l6 6M36 10v20l-6-6" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
+            btn.style.cursor = 'pointer';
+            btn.addEventListener('click', function() {
+                if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
+                    window.Yii2Markdown.DualEngine.switchTo({$instance_id}, 'vditor');
+                }
+            });
+            toolbar.appendChild(btn);
+        }
+    } catch(e) { console.warn('[yii2markdown] 切换按钮注入失败:', e); }
 
     // ========= 变更同步 + 自动保存 + 字数统计 =========
     var saveTimer = null;

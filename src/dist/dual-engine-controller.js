@@ -34,6 +34,7 @@
 (function (global) {
     'use strict';
 
+    var global = (typeof global !== 'undefined') ? global : (typeof window !== 'undefined') ? window : (typeof self !== 'undefined') ? self : {};
     var doc = global.document;
     if (!doc) return;
 
@@ -252,49 +253,14 @@
     }
 
     // ---------------------------------------------------------------- toolbar UI
+    // 顶部工具栏条已由各编辑器工具栏内置切换按钮替代，此处不再额外生成。
     function ensureToolbar(state) {
-        if (state.toolbar) return state.toolbar;
-        var bar = doc.createElement('div');
-        bar.className = 'yii2md-toolbar-extra';
-        bar.setAttribute('data-instance-id', String(state.id));
-
-        var labelEngine = doc.createElement('span');
-        labelEngine.className = 'yii2md-engine-label';
-        bar.appendChild(labelEngine);
-
-        var btn = doc.createElement('button');
-        btn.type = 'button';
-        btn.className = 'yii2md-btn';
-        btn.setAttribute('data-yii2md-action', 'switch');
-        btn.setAttribute('data-instance-id', String(state.id));
-        bar.appendChild(btn);
-
-        // 插入位置：根容器最前
-        if (state.root.firstChild) state.root.insertBefore(bar, state.root.firstChild);
-        else state.root.appendChild(bar);
-
-        state.toolbar = bar;
-        state.toolbarLabel = labelEngine;
-        state.toolbarBtn = btn;
-
-        btn.addEventListener('click', function () {
-            var to = state.engine === 'cherry' ? 'vditor' : 'cherry';
-            api.switchTo(state.id, to);
-        });
-        refreshToolbar(state);
-        return bar;
+        // 不创建额外的顶部工具栏条，切换按钮由 Editor.php / VditorEditor.php 注入到各自工具栏。
+        return null;
     }
 
     function refreshToolbar(state) {
-        if (!state.toolbar) return;
-        var labelText = state.engine === 'cherry'
-            ? '当前模式：Markdown'
-            : '当前模式：所见即所得';
-        var btnText = state.engine === 'cherry'
-            ? '切换到所见即所得 →'
-            : '切换到 Markdown →';
-        state.toolbarLabel.textContent = labelText;
-        state.toolbarBtn.textContent = btnText;
+        // 无顶部工具栏条，无需刷新。
     }
 
     // ---------------------------------------------------------------- banner
@@ -534,6 +500,25 @@
                                 vd.setValue(valueForTarget);
                             }
                         } catch (e) {}
+                        // 向 Vditor 工具栏末尾注入切换到 Cherry 的按钮
+                        try {
+                            var vdToolbar = doc.querySelector('#' + mountId + ' .vditor-toolbar');
+                            if (vdToolbar) {
+                                var sep = doc.createElement('div');
+                                sep.className = 'vditor-toolbar__divider';
+                                vdToolbar.appendChild(sep);
+                                var btn = doc.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'vditor-toolbar__item';
+                                btn.title = '切换到 Markdown';
+                                btn.setAttribute('data-yii2md-action', 'switch');
+                                btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+                                btn.addEventListener('click', function() {
+                                    api.switchTo(instanceId, 'cherry');
+                                });
+                                vdToolbar.appendChild(btn);
+                            }
+                        } catch (e) { warn('inject vditor switch btn failed', e); }
                         global['vditor_' + instanceId] = vd;
                         markReady();
                     },

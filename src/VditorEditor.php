@@ -187,6 +187,11 @@ class VditorEditor extends Widget
             }
             if (\$input) { \$input.value = initValue || ''; }
         } catch (e) { console.warn('[yii2-markdown] vditor after init sync failed:', e); }
+        // 给切换按钮加上标准 data-yii2md-action 属性，方便测试和 DualEngine 识别
+        try {
+            var switchBtn = document.querySelector('#' + mountId + ' [data-type="switchToCherry"]');
+            if (switchBtn) { switchBtn.setAttribute('data-yii2md-action', 'switch'); }
+        } catch (e) {}
         if (userAfter) { try { userAfter(); } catch (e) { console.warn(e); } }
     };
 

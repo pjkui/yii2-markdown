@@ -31,6 +31,7 @@ class ConverterAsset extends \yii\web\AssetBundle
         'turndown.min.js',
         'turndown-plugin-gfm.min.js',
         'converter.js',
+        'dual-engine-controller.js',
     ];
 
     public $css = [];

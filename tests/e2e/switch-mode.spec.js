@@ -21,7 +21,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.YII2MD_BASE_URL || 'http://127.0.0.1:8080';
-const DEMO_PATH = '/?page=dual';   // demo 页由任务 #5 提供（也可直接独立 dual-engine-demo.php）
+const DEMO_PATH = '/';   // 主演示页，支持双引擎前端切换
 
 /** 找到第一个实例的 id（demo 页可能渲染多个，这里取第一个） */
 async function firstInstanceId(page) {
@@ -36,7 +36,7 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         await page.waitForFunction(() => {
             return !!(window.Yii2Markdown && window.Yii2Markdown.DualEngine && window.Yii2Markdown.DualEngine.__ready);
         }, { timeout: 15_000 });
-        await page.waitForSelector('.yii2-markdown-root .yii2md-toolbar-extra');
+        await page.waitForSelector('[data-yii2md-action="switch"]');
     });
 
     test('T1 默认进入 Markdown 模式（Cherry）', async ({ page }) => {
@@ -46,10 +46,9 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         await page.waitForFunction((id) => !!window['cherry' + id], id);
     });
 
-    test('T2 工具栏含「切换到所见即所得」按钮', async ({ page }) => {
+    test('T2 工具栏含切换按钮', async ({ page }) => {
         const btn = page.locator('[data-yii2md-action="switch"]').first();
         await expect(btn).toBeVisible();
-        await expect(btn).toContainText(/切换到/);
     });
 
     test('T3 切换前弹确认对话框', async ({ page }) => {

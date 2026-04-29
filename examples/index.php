@@ -9,7 +9,7 @@
  *   YII2_MARKDOWN_DEMO=1 php -S 127.0.0.1:8080 -t examples examples/router.php
  *
  * 然后访问：
- *   http://127.0.0.1:8080/            -> 编辑器页面（Editor）
+ *   http://127.0.0.1:8080/            -> 编辑器页面（Editor，支持双引擎前端切换）
  *   http://127.0.0.1:8080/?page=preview -> 预览页面（Preview）
  *
  * 注意：本文件及 upload.php 都受 _guard.php 保护，
@@ -83,11 +83,12 @@ $page = $_GET['page'] ?? 'editor';
 $model = new class extends yii\base\Model {
     public $title = '示例标题';
     public $content = <<<MD
-# Yii2-Markdown 可视化 Demo
+# Yii2-Markdown 双引擎 Demo
 
-这是一个 **Cherry Markdown** 编辑器的演示页。
+这是一个支持 **Cherry Markdown** 与 **Vditor 所见即所得** 双引擎切换的演示页。
 
-- 试着在左侧输入内容，右侧会实时预览
+- 点击工具栏右侧的切换按钮，可在两种编辑模式之间无缝切换
+- 切换前会弹出确认对话框，切换后顶部出现「放弃转换」横幅，可一键恢复
 - 支持 `Ctrl/⌘ + S` 触发表单提交
 - 工具栏图片按钮会调用 `/upload.php` 模拟上传接口
 - 编辑后会自动存本地草稿，刷新会提示恢复
@@ -95,7 +96,7 @@ $model = new class extends yii\base\Model {
 > 请使用上方工具栏进行格式化操作。
 
 ```js
-console.log('hello cherry-markdown');
+console.log('hello yii2-markdown');
 ```
 
 | A | B | C |
@@ -129,15 +130,24 @@ if ($page === 'preview') {
     ]);
     echo '<p style="margin-top:24px;"><a href="/">← 回到编辑器</a></p>';
 } else {
-    echo '<h2 style="margin:0 0 12px 0;">Editor 组件演示</h2>';
-    echo '<p style="color:#666;">提交后页面会刷新并在下方打印收到的 POST 数据。</p>';
+    echo '<h2 style="margin:0 0 12px 0;">Editor 双引擎演示</h2>';
+    echo '<p style="color:#6b7280;margin:0 0 16px 0;">默认启动 Markdown 模式。点击工具栏中的切换按钮，可在 Cherry Markdown 与 Vditor 所见即所得之间前端切换，无需刷新页面。</p>';
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo '<div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:10px 12px;margin-bottom:16px;border-radius:4px;">';
         echo '<b>已接收表单提交：</b><pre style="white-space:pre-wrap;margin:8px 0 0;">';
         echo htmlspecialchars(print_r($_POST, true));
         echo '</pre></div>';
+        // 把 _md 当权威源回填
+        $post = $_POST['Post'] ?? [];
+        if (!empty($post['content_md'])) {
+            $model->content = $post['content_md'];
+        }
     }
+
+    // 预加载双引擎所需资源：Converter + Vditor（前端切换时需要）
+    \pjkui\markdown\ConverterAsset::register($view);
+    \pjkui\markdown\VditorAsset::register($view);
 
     echo yii\helpers\Html::beginForm('', 'post');
     echo '<label style="display:block;margin-bottom:6px;">标题</label>';
@@ -162,6 +172,25 @@ if ($page === 'preview') {
     echo ' <a href="/?page=preview" style="margin-left:12px;">查看 Preview 演示 →</a>';
     echo '</div>';
     echo yii\helpers\Html::endForm();
+
+    echo '<details style="margin-top:24px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:8px 12px;">';
+    echo '<summary style="cursor:pointer;font-weight:600;">实时事件日志（yii2md:beforeSwitch / afterSwitch / revert）</summary>';
+    echo '<pre id="evt-log" style="white-space:pre-wrap;margin:8px 0 0;font-size:12px;line-height:1.5;color:#374151;background:#fff;border:1px solid #e5e7eb;border-radius:3px;padding:8px;min-height:64px;max-height:200px;overflow:auto;">（操作切换/放弃后此处会出现日志）</pre>';
+    echo '</details>';
+    echo '<script>
+(function(){
+    var log = document.getElementById("evt-log");
+    function append(name, detail){
+        if (!log) return;
+        if (log.textContent.indexOf("（") === 0) log.textContent = "";
+        log.textContent += "[" + new Date().toLocaleTimeString() + "] " + name
+            + " " + JSON.stringify(detail) + "\n";
+    }
+    ["yii2md:beforeSwitch","yii2md:afterSwitch","yii2md:revert"].forEach(function(name){
+        document.addEventListener(name, function(e){ append(name, e.detail || {}); });
+    });
+})();
+</script>';
 }
 
 $body = ob_get_clean();
@@ -188,7 +217,6 @@ $view->beginPage();
     <div class="nav">
         <a href="/">编辑器</a>
         <a href="/?page=preview">预览</a>
-        <a href="/dual">双引擎</a>
         <span>· 上传接口：<code>/upload.php</code></span>
     </div>
     <?= $body ?>

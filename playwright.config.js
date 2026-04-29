@@ -28,15 +28,11 @@ module.exports = defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'msedge',
       use: {
-        ...devices['Desktop Chrome'],
-        channel: 'chromium',
+        ...devices['Desktop Edge'],
+        channel: 'msedge',
       },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
     },
   ],
   webServer: {

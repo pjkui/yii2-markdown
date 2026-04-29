@@ -16,7 +16,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const DUAL_DEMO = '/dual-engine-demo.php';
+const DUAL_DEMO = '/';
 
 const LARGE_TABLE_MD = [
   '# 表格回归',
@@ -163,14 +163,15 @@ test.describe('R4 表格双向切换 N=10 内容稳定', () => {
       if (ta) ta.value = md;
     }, LARGE_TABLE_MD);
 
-    // 用 DualEngine 编程式 API 切换：每次返回 Promise，自动带确认对话框
-    // （confirmDialog 在程序触发时同样会弹，让 E2E 用 dialog-mask 方式点 confirm）
+    // 用 DualEngine 编程式 API 切换：非阻塞触发，再等对话框点确认
     for (let i = 0; i < 10; i += 1) {
       const before = await currentEngine(page);
       const target = before === 'cherry' ? 'vditor' : 'cherry';
 
-      await page.locator('[data-yii2md-action="switch"]').first().click();
+      // 非阻塞调用 switchTo（返回 Promise 等对话框，用 page.evaluate 不 await 避免死锁）
+      await page.evaluate((t) => { window.Yii2Markdown.DualEngine.switchTo(t); }, target);
       const mask = page.locator('.yii2md-dialog-mask').first();
+      await mask.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
       if (await mask.isVisible().catch(() => false)) {
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
       }
