@@ -451,6 +451,12 @@
                     id: mountId,
                     value: valueForTarget || '',
                     editor: { defaultModel: 'edit&preview', height: '620px' },
+                    // 声明外部依赖不可用，避免插件初始化时报 "Package not found" 错误
+                    externals: {
+                        echarts: global.echarts || null,
+                        katex: global.katex || null,
+                        MathJax: global.MathJax || null,
+                    },
                 });
                 global['cherry' + instanceId] = cherry;
             } catch (e) {

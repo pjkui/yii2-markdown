@@ -203,11 +203,26 @@ $view->beginPage();
     <title>Yii2-Markdown 可视化 Demo</title>
     <?php $view->head(); ?>
     <style>
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;margin:0;padding:24px;background:#f9fafb;color:#111827;}
-        .container{max-width:1100px;margin:0 auto;background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;margin:0;padding:24px;background:#f9fafb;color:#111827;transition:background .2s,color .2s;}
+        .container{max-width:1100px;margin:0 auto;background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:background .2s,box-shadow .2s;}
         h1{margin:0 0 8px 0;font-size:20px;}
-        .nav{margin-bottom:16px;font-size:13px;color:#6b7280;}
-        .nav a{color:#2563eb;text-decoration:none;margin-right:12px;}
+        .nav{margin-bottom:16px;font-size:13px;color:#6b7280;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+        .nav a{color:#2563eb;text-decoration:none;margin-right:8px;}
+        /* 深色模式切换按钮 */
+        #theme-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;font-size:12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:20px;cursor:pointer;transition:background .15s,border-color .15s;user-select:none;}
+        #theme-toggle:hover{background:#e5e7eb;}
+        /* 深色模式全局样式 */
+        [data-theme="dark"] body{background:#0f172a;color:#f1f5f9;}
+        [data-theme="dark"] .container{background:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+        [data-theme="dark"] .nav{color:#94a3b8;}
+        [data-theme="dark"] .nav a{color:#60a5fa;}
+        [data-theme="dark"] #theme-toggle{background:#1e293b;color:#cbd5e1;border-color:#334155;}
+        [data-theme="dark"] #theme-toggle:hover{background:#334155;}
+        [data-theme="dark"] label{color:#cbd5e1;}
+        [data-theme="dark"] input[type="text"]{background:#0f172a;color:#f1f5f9;border-color:#334155;}
+        [data-theme="dark"] details{background:#1e293b;border-color:#334155;}
+        [data-theme="dark"] details pre{background:#0f172a;border-color:#334155;color:#94a3b8;}
+        [data-theme="dark"] summary{color:#cbd5e1;}
     </style>
 </head>
 <body>
@@ -218,9 +233,20 @@ $view->beginPage();
         <a href="/">编辑器</a>
         <a href="/?page=preview">预览</a>
         <span>· 上传接口：<code>/upload.php</code></span>
+        <button id="theme-toggle" onclick="(function(){var h=document.documentElement;var d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');localStorage.setItem('yii2md-demo-theme',d?'light':'dark');document.getElementById('theme-toggle').textContent=d?'🌙 深色':'☀️ 浅色';})()">🌙 深色</button>
     </div>
     <?= $body ?>
 </div>
+<script>
+(function(){
+    var saved = localStorage.getItem('yii2md-demo-theme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        var btn = document.getElementById('theme-toggle');
+        if (btn) btn.textContent = '☀️ 浅色';
+    }
+})();
+</script>
 <?php $view->endBody(); ?>
 </body>
 </html>
