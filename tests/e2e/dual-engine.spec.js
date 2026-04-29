@@ -101,6 +101,31 @@ test.describe('双引擎 demo（issue #7）', () => {
         await expect(page.locator('.cherry-markdown').first()).toBeVisible();
     });
 
+    test('E6b Vditor 切换按钮在根容器（非 vditor-toolbar 内）且可点击触发对话框', async ({ page }) => {
+        await page.goto(BASE_URL + DEMO_URL);
+        await page.waitForSelector('[data-yii2md-action="switch"]');
+        const id = await page.locator('.yii2-markdown-root').first().getAttribute('data-instance-id');
+
+        // 切换到 Vditor
+        await page.locator('[data-yii2md-action="switch"]').first().click();
+        await page.locator('.yii2md-dialog [data-action="confirm"]').click();
+        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 20_000 });
+
+        // 确认切换按钮在根容器上（不在 vditor-toolbar 内）
+        const parentClass = await page.evaluate(() =>
+            document.querySelector('[data-yii2md-action="switch"]')?.parentElement?.className || ''
+        );
+        expect(parentClass).not.toContain('vditor-toolbar');
+        expect(parentClass).toContain('yii2-markdown-root');
+
+        // 点击切换按钮能弹出对话框
+        await page.evaluate(() => { document.querySelector('[data-yii2md-action="switch"]').click(); });
+        await expect(page.locator('.yii2md-dialog-mask')).toBeVisible({ timeout: 5_000 });
+        // 取消不切换
+        await page.locator('.yii2md-dialog [data-action="cancel"]').click();
+        await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
+    });
+
     test('E7 文档迁移指南文件存在且关键词齐全', async () => {
         const fs = require('fs');
         const path = require('path');

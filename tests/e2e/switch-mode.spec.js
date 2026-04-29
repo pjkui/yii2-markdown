@@ -114,6 +114,39 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         expect(after.trim()).toBe(before.trim());
     });
 
+    test('T7b Vditor 工具栏切换按钮点击可触发对话框并切回 Cherry', async ({ page }) => {
+        const id = await firstInstanceId(page);
+        const marker = '# Vditor to Cherry\n\nSwitch back test.';
+        await page.evaluate(([id, md]) => window['cherry' + id].setMarkdown(md), [id, marker]);
+
+        // Cherry → Vditor
+        await page.locator('[data-yii2md-action="switch"]').first().click();
+        await page.locator('.yii2md-dialog [data-action="confirm"]').click();
+        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
+
+        // Vditor 根容器上的切换按钮（position:absolute，不在工具栏内）
+        const switchBtn = page.locator('.yii2-markdown-root--vditor [data-yii2md-action="switch"]').first();
+        await expect(switchBtn).toBeVisible();
+
+        // 非阻塞触发（switchTo 返回 Promise 等对话框确认）
+        await page.evaluate(() => { document.querySelector('.yii2-markdown-root--vditor [data-yii2md-action="switch"]').click(); });
+        await page.waitForSelector('.yii2md-dialog [data-action="confirm"]', { timeout: 5_000 });
+        await page.locator('.yii2md-dialog [data-action="confirm"]').click();
+
+        // 等切回 Cherry
+        await page.waitForFunction((id) =>
+            document.querySelector('.yii2-markdown-root').getAttribute('data-engine') === 'cherry'
+            && !!window['cherry' + id],
+            id, { timeout: 10_000 }
+        );
+        await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'cherry');
+
+        // 内容保留
+        const md = await page.evaluate((id) => window['cherry' + id].getMarkdown(), id);
+        expect(md).toContain('Vditor to Cherry');
+    });
+
     test('T8 自定义事件 yii2md:beforeSwitch / afterSwitch / revert 被触发', async ({ page }) => {
         const id = await firstInstanceId(page);
         await page.evaluate(() => {

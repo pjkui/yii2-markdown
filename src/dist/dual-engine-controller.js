@@ -87,6 +87,10 @@
             '.yii2md-banner .yii2md-banner-msg{flex:1}',
             '.yii2md-banner .yii2md-btn{background:#fff;border-color:#d97706;color:#92400e}',
             '.yii2md-banner .yii2md-btn:hover{background:#fef3c7}',
+            // Vditor 模式下叠放在工具栏右上角的切换按钮
+            '.yii2md-switch-btn{position:absolute;top:4px;right:8px;z-index:10;padding:3px 10px;font-size:12px;line-height:1.4;background:#fff;color:#1f2937;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;transition:background .15s,border-color .15s}',
+            '.yii2md-switch-btn:hover{background:#f3f4f6;border-color:#9ca3af}',
+            '.yii2-markdown-root--vditor{position:relative}',
             // dialog
             '.yii2md-dialog-mask{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;animation:yii2md-fade .12s ease-out}',
             '@keyframes yii2md-fade{from{opacity:0}to{opacity:1}}',
@@ -390,27 +394,19 @@
             var root = state.root;
             if (root.querySelector('[data-yii2md-action="switch"]')) return; // avoid duplicate
             var btn = doc.createElement('button');
+            btn.type = 'button';
             btn.className = 'yii2md-switch-btn';
             btn.setAttribute('data-yii2md-action', 'switch');
             btn.innerHTML = state.engine === 'cherry' ? 'WYSIWYG' : 'Markdown';
             btn.title = state.engine === 'cherry' ? '切换到所见即所得' : '切换到 Markdown 源码';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
                 var target = state.engine === 'cherry' ? 'vditor' : 'cherry';
-                if (typeof DualEngine !== 'undefined' && DualEngine.switchTo) {
-                    DualEngine.switchTo(state.id, target);
-                } else {
-                    dispatch(root, 'yii2md:switch', { to: target });
-                }
+                api.switchTo(state.id, target);
             });
-            // Insert into toolbar
-            var tb = root.querySelector('.cherry-toolbar, .vditor-toolbar');
-            if (tb) {
-                tb.appendChild(btn);
-                state.toolbar = tb;
-            } else {
-                root.insertBefore(btn, root.firstChild);
-            }
+            // 追加到根容器（不插入 Vditor 工具栏内，避免事件被拦截）
+            root.appendChild(btn);
         }
 
         function markReady() {
@@ -500,23 +496,21 @@
                                 vd.setValue(valueForTarget);
                             }
                         } catch (e) {}
-                        // 向 Vditor 工具栏末尾注入切换到 Cherry 的按钮
+                        // 向根容器追加切换到 Cherry 的按钮（不插入 Vditor 工具栏，避免事件被拦截）
                         try {
-                            var vdToolbar = doc.querySelector('#' + mountId + ' .vditor-toolbar');
-                            if (vdToolbar) {
-                                var sep = doc.createElement('div');
-                                sep.className = 'vditor-toolbar__divider';
-                                vdToolbar.appendChild(sep);
+                            if (!root.querySelector('[data-yii2md-action="switch"]')) {
                                 var btn = doc.createElement('button');
                                 btn.type = 'button';
-                                btn.className = 'vditor-toolbar__item';
+                                btn.className = 'yii2md-switch-btn';
                                 btn.title = '切换到 Markdown';
                                 btn.setAttribute('data-yii2md-action', 'switch');
-                                btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-                                btn.addEventListener('click', function() {
+                                btn.textContent = 'Markdown';
+                                btn.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     api.switchTo(instanceId, 'cherry');
                                 });
-                                vdToolbar.appendChild(btn);
+                                root.appendChild(btn);
                             }
                         } catch (e) { warn('inject vditor switch btn failed', e); }
                         global['vditor_' + instanceId] = vd;
