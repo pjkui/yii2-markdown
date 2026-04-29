@@ -208,7 +208,7 @@ class VditorEditor extends Widget
         name: 'switchToCherry',
         tip: '切换到 Markdown',
         tipPosition: 's',
-        icon: '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">M</text></svg>',
+        icon: '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:4px;font-size:12px;font-weight:700;font-family:monospace;line-height:1;vertical-align:middle;">M</span>',
         click: function() {
             if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
                 // 从根容器读取 DualEngine 注册的实例 ID

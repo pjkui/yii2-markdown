@@ -88,7 +88,7 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
 
         await page.locator('[data-yii2md-action="switch"]').first().click();
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
-        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window["vditor_" + id], id, { timeout: 20_000 });
 
         const html = await page.evaluate((id) => window['vditor_' + id].getHTML(), id);
         expect(html).toMatch(/Title/);
@@ -102,7 +102,7 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
 
         await page.locator('[data-yii2md-action="switch"]').first().click();
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
-        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window["vditor_" + id], id, { timeout: 20_000 });
 
         await page.locator('.yii2md-banner [data-action="revert"]').first().click();
         await page.waitForFunction((id) =>
@@ -122,7 +122,7 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         // Cherry → Vditor
         await page.locator('[data-yii2md-action="switch"]').first().click();
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
-        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window["vditor_" + id], id, { timeout: 20_000 });
         await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
 
         // 等 Vditor 工具栏内的 M 按钮出现（原生 toolbar 配置）

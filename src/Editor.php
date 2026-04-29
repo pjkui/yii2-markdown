@@ -515,10 +515,10 @@ class Editor extends Widget
         var toolbar = document.querySelector('#cherry{$instance_id} .cherry-toolbar .toolbar-left');
         if (toolbar) {
             var btn = document.createElement('span');
-            btn.className = 'cherry-toolbar-button';
+            btn.className = 'cherry-toolbar-button yii2md-switch-badge';
             btn.title = '切换到所见即所得';
             btn.setAttribute('data-yii2md-action', 'switch');
-            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">V</text></svg>';
+            btn.textContent = 'V';
             btn.style.cursor = 'pointer';
             btn.addEventListener('click', function() {
                 if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
@@ -611,12 +611,16 @@ class Editor extends Widget
 EOF;
 
         $view->registerJs($js, \yii\web\View::POS_END);
-        // 状态栏样式
+        // 状态栏 + 切换按钮样式
         $view->registerCss(<<<CSS
 .md-editor-status{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:6px 12px;font-size:12px;color:#6b7280;background:#fafafa;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 4px 4px}
 .md-editor-status .md-draft-status{color:#10b981}
 .md-editor-status .md-draft-status.saved::before{content:"● "}
 .md-editor-status .md-shortcuts{margin-left:auto;color:#9ca3af}
+.cherry-toolbar-button.yii2md-switch-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:4px;font-size:12px;font-weight:700;font-family:monospace;line-height:1;margin-left:2px;transition:background .15s,transform .1s;user-select:none}
+.cherry-toolbar-button.yii2md-switch-badge:hover{background:#1d4ed8;transform:scale(1.1)}
+[data-theme="dark"] .cherry-toolbar-button.yii2md-switch-badge{background:#3b82f6}
+[data-theme="dark"] .cherry-toolbar-button.yii2md-switch-badge:hover{background:#60a5fa}
 [data-theme="dark"] .md-editor-status{background:#1f2937;border-color:#374151;color:#9ca3af}
 [data-theme="dark"] .md-editor-status .md-shortcuts{color:#6b7280}
 @media (max-width: 768px){

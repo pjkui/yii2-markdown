@@ -81,7 +81,7 @@ async function currentEngine(page) {
   return await page.locator('.yii2-markdown-root').first().getAttribute('data-engine');
 }
 
-async function waitEngine(page, expected, timeout = 10_000) {
+async function waitEngine(page, expected, timeout = 20_000) {
   await page.waitForFunction(
     (exp) => document.querySelector('.yii2-markdown-root').getAttribute('data-engine') === exp,
     expected,

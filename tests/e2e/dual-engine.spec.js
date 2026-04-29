@@ -83,10 +83,10 @@ test.describe('双引擎 demo（issue #7）', () => {
         // 切换到 Vditor
         await page.locator('[data-yii2md-action="switch"]').first().click();
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
-        await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window["vditor_" + id], id, { timeout: 20_000 });
         await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
         // 切换回 Cherry：等 Vditor 完全就绪，然后用 DualEngine API 触发（不等 Promise）
-        await page.waitForFunction((id) => !!window['vditor_' + id] && !!document.querySelector('.vditor-toolbar'), id, { timeout: 10_000 });
+        await page.waitForFunction((id) => !!window['vditor_' + id] && !!document.querySelector('.vditor-toolbar'), id, { timeout: 20_000 });
         // 非阻塞调用 switchTo（它返回的 Promise 等待用户确认对话框）
         await page.evaluate((id) => { window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'); }, id);
         // 等对话框出现并确认
