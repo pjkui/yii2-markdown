@@ -451,11 +451,12 @@
                     id: mountId,
                     value: valueForTarget || '',
                     editor: { defaultModel: 'edit&preview', height: '620px' },
-                    // 声明外部依赖不可用，避免插件初始化时报 "Package not found" 错误
-                    externals: {
-                        echarts: global.echarts || null,
-                        katex: global.katex || null,
-                        MathJax: global.MathJax || null,
+                    engine: {
+                        syntax: {
+                            // 显式禁用图表插件，避免 usePlugin(EChartsTableEngine) 强制
+                            // 开启 enableChart:true 后，未加载 echarts 时抛 "Package not found"
+                            table: { enableChart: false },
+                        },
                     },
                 });
                 global['cherry' + instanceId] = cherry;
