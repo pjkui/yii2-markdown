@@ -114,7 +114,7 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         expect(after.trim()).toBe(before.trim());
     });
 
-    test('T7b Vditor 工具栏切换按钮点击可触发对话框并切回 Cherry', async ({ page }) => {
+    test('T7b Vditor 工具栏 M 按钮点击可触发对话框并切回 Cherry', async ({ page }) => {
         const id = await firstInstanceId(page);
         const marker = '# Vditor to Cherry\n\nSwitch back test.';
         await page.evaluate(([id, md]) => window['cherry' + id].setMarkdown(md), [id, marker]);
@@ -125,12 +125,11 @@ test.describe('双引擎模式切换 / 备份 / 放弃（issue #6）', () => {
         await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 10_000 });
         await expect(page.locator('.yii2-markdown-root').first()).toHaveAttribute('data-engine', 'vditor');
 
-        // Vditor 根容器上的切换按钮（position:absolute，不在工具栏内）
-        const switchBtn = page.locator('.yii2-markdown-root--vditor [data-yii2md-action="switch"]').first();
-        await expect(switchBtn).toBeVisible();
+        // 等 Vditor 工具栏内的 M 按钮出现（原生 toolbar 配置）
+        await page.waitForSelector('[data-yii2md-action="switch"]', { timeout: 5_000 });
 
-        // 非阻塞触发（switchTo 返回 Promise 等对话框确认）
-        await page.evaluate(() => { document.querySelector('.yii2-markdown-root--vditor [data-yii2md-action="switch"]').click(); });
+        // 点击 M 按钮（非阻塞，switchTo 返回 Promise 等对话框）
+        await page.evaluate(() => { document.querySelector('[data-yii2md-action="switch"]').click(); });
         await page.waitForSelector('.yii2md-dialog [data-action="confirm"]', { timeout: 5_000 });
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
 

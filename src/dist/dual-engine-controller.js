@@ -87,10 +87,6 @@
             '.yii2md-banner .yii2md-banner-msg{flex:1}',
             '.yii2md-banner .yii2md-btn{background:#fff;border-color:#d97706;color:#92400e}',
             '.yii2md-banner .yii2md-btn:hover{background:#fef3c7}',
-            // Vditor 模式下叠放在工具栏右上角的切换按钮
-            '.yii2md-switch-btn{position:absolute;top:4px;right:8px;z-index:10;padding:3px 10px;font-size:12px;line-height:1.4;background:#fff;color:#1f2937;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;transition:background .15s,border-color .15s}',
-            '.yii2md-switch-btn:hover{background:#f3f4f6;border-color:#9ca3af}',
-            '.yii2-markdown-root--vditor{position:relative}',
             // dialog
             '.yii2md-dialog-mask{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;animation:yii2md-fade .12s ease-out}',
             '@keyframes yii2md-fade{from{opacity:0}to{opacity:1}}',
@@ -389,24 +385,21 @@
         // 立刻读 getValue/getHTML 拿到 undefined / 空字符串」的竞态。
         // 这个语义保证「data-engine 翻牌」是一个原子的「ready」信号。
         // ============================================================
-        function injectSwitchBtn(state) {
-            if (!state || !state.root) return;
-            var root = state.root;
-            if (root.querySelector('[data-yii2md-action="switch"]')) return; // avoid duplicate
-            var btn = doc.createElement('button');
-            btn.type = 'button';
-            btn.className = 'yii2md-switch-btn';
+        function injectCherryV(state) {
+            // Cherry 工具栏注入 V 图标按钮（切换到 Vditor）
+            var toolbar = state.root.querySelector('.cherry-toolbar .toolbar-left');
+            if (!toolbar || toolbar.querySelector('[data-yii2md-action="switch"]')) return;
+            var btn = doc.createElement('span');
+            btn.className = 'cherry-toolbar-button';
+            btn.title = '切换到所见即所得';
             btn.setAttribute('data-yii2md-action', 'switch');
-            btn.innerHTML = state.engine === 'cherry' ? 'WYSIWYG' : 'Markdown';
-            btn.title = state.engine === 'cherry' ? '切换到所见即所得' : '切换到 Markdown 源码';
+            btn.style.cursor = 'pointer';
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">V</text></svg>';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
-                e.stopPropagation();
-                var target = state.engine === 'cherry' ? 'vditor' : 'cherry';
-                api.switchTo(state.id, target);
+                api.switchTo(state.id, 'vditor');
             });
-            // 追加到根容器（不插入 Vditor 工具栏内，避免事件被拦截）
-            root.appendChild(btn);
+            toolbar.appendChild(btn);
         }
 
         function markReady() {
@@ -440,7 +433,6 @@
             state.engine = targetEngine;
             bindLiveSync(state);
             refreshToolbar(state);
-            injectSwitchBtn(state);
         }
 
         // 创建新挂点
@@ -467,6 +459,8 @@
             }
             // Cherry 构造是同步的：getMarkdown 立刻可用。
             markReady();
+            // Cherry 工具栏渲染可能稍有延迟，延迟注入 V 按钮
+            setTimeout(function() { injectCherryV(state); }, 100);
         } else {
             mountId = 'vditor' + instanceId;
             mount = doc.createElement('div');
@@ -484,10 +478,28 @@
                 // 把初始值通过 `value` 选项传入（vditor 内部会在 after 之前就把它灌进编辑器），
                 // 比"new 之后再 setValue"更可靠 —— 后者在某些初始化路径下会被 vditor 的
                 // 内部 reset 覆盖（R4 表格 10 次切换中观察到 setValue 后立即 getValue 仍空）。
+                var vditorToolbar = [
+                    'emoji', 'headings', 'bold', 'italic', 'strike', 'link', '|',
+                    'list', 'ordered-list', 'check', 'outdent', 'indent', '|',
+                    'quote', 'line', 'code', 'inline-code', 'insert-before', 'insert-after', '|',
+                    'upload', 'record', 'table', '|',
+                    'undo', 'redo', '|',
+                    'fullscreen', 'edit-mode', 'both', 'preview', 'outline', 'code-theme', 'content-theme', 'export', 'more',
+                    '|', {
+                        name: 'switchToCherry',
+                        tip: '切换到 Markdown',
+                        tipPosition: 's',
+                        icon: '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">M</text></svg>',
+                        click: function () {
+                            api.switchTo(instanceId, 'cherry');
+                        }
+                    }
+                ];
                 var vd = new global.Vditor(mountId, {
                     mode: 'wysiwyg',
                     cache: { enable: false },
                     value: valueForTarget || '',
+                    toolbar: vditorToolbar,
                     after: function () {
                         try {
                             // 双保险：value 选项在多数版本下足够，但若被 vditor 内部 reset 清空，
@@ -496,23 +508,11 @@
                                 vd.setValue(valueForTarget);
                             }
                         } catch (e) {}
-                        // 向根容器追加切换到 Cherry 的按钮（不插入 Vditor 工具栏，避免事件被拦截）
+                        // 给切换按钮加上 data-yii2md-action 属性，方便测试选择器
                         try {
-                            if (!root.querySelector('[data-yii2md-action="switch"]')) {
-                                var btn = doc.createElement('button');
-                                btn.type = 'button';
-                                btn.className = 'yii2md-switch-btn';
-                                btn.title = '切换到 Markdown';
-                                btn.setAttribute('data-yii2md-action', 'switch');
-                                btn.textContent = 'Markdown';
-                                btn.addEventListener('click', function(e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    api.switchTo(instanceId, 'cherry');
-                                });
-                                root.appendChild(btn);
-                            }
-                        } catch (e) { warn('inject vditor switch btn failed', e); }
+                            var switchBtn = doc.querySelector('#' + mountId + ' [data-type="switchToCherry"]');
+                            if (switchBtn) { switchBtn.setAttribute('data-yii2md-action', 'switch'); }
+                        } catch (e) {}
                         global['vditor_' + instanceId] = vd;
                         markReady();
                     },

@@ -101,7 +101,7 @@ test.describe('双引擎 demo（issue #7）', () => {
         await expect(page.locator('.cherry-markdown').first()).toBeVisible();
     });
 
-    test('E6b Vditor 切换按钮在根容器（非 vditor-toolbar 内）且可点击触发对话框', async ({ page }) => {
+    test('E6b Vditor 切换按钮在 vditor-toolbar 内且可点击触发对话框', async ({ page }) => {
         await page.goto(BASE_URL + DEMO_URL);
         await page.waitForSelector('[data-yii2md-action="switch"]');
         const id = await page.locator('.yii2-markdown-root').first().getAttribute('data-instance-id');
@@ -111,14 +111,14 @@ test.describe('双引擎 demo（issue #7）', () => {
         await page.locator('.yii2md-dialog [data-action="confirm"]').click();
         await page.waitForFunction((id) => !!window['vditor_' + id], id, { timeout: 20_000 });
 
-        // 确认切换按钮在根容器上（不在 vditor-toolbar 内）
+        // 确认 M 按钮在 vditor-toolbar 内（原生 toolbar 配置）
+        await page.waitForSelector('[data-yii2md-action="switch"]', { timeout: 5_000 });
         const parentClass = await page.evaluate(() =>
-            document.querySelector('[data-yii2md-action="switch"]')?.parentElement?.className || ''
+            document.querySelector('[data-yii2md-action="switch"]')?.closest('.vditor-toolbar') ? 'vditor-toolbar' : 'other'
         );
-        expect(parentClass).not.toContain('vditor-toolbar');
-        expect(parentClass).toContain('yii2-markdown-root');
+        expect(parentClass).toBe('vditor-toolbar');
 
-        // 点击切换按钮能弹出对话框
+        // 点击 M 按钮能弹出对话框
         await page.evaluate(() => { document.querySelector('[data-yii2md-action="switch"]').click(); });
         await expect(page.locator('.yii2md-dialog-mask')).toBeVisible({ timeout: 5_000 });
         // 取消不切换

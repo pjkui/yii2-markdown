@@ -518,7 +518,7 @@ class Editor extends Widget
             btn.className = 'cherry-toolbar-button';
             btn.title = '切换到所见即所得';
             btn.setAttribute('data-yii2md-action', 'switch');
-            btn.innerHTML = '<svg viewBox="0 0 40 40" width="16" height="16"><path d="M10 4h20l-6 6M10 36h20l-6-6M36 10v20l6 6M36 10v20l-6-6" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">V</text></svg>';
             btn.style.cursor = 'pointer';
             btn.addEventListener('click', function() {
                 if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {

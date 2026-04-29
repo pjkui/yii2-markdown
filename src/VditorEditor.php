@@ -187,28 +187,11 @@ class VditorEditor extends Widget
             }
             if (\$input) { \$input.value = initValue || ''; }
         } catch (e) { console.warn('[yii2-markdown] vditor after init sync failed:', e); }
-        // 注入切换按钮到根容器（不插入 Vditor 工具栏内，避免事件被拦截）
+        // 给工具栏内的切换按钮加上 data-yii2md-action，方便测试选择器定位
         try {
-            var rootEl = document.getElementById(mountId);
-            rootEl = rootEl ? rootEl.closest('.yii2-markdown-root') : null;
-            if (rootEl && !rootEl.querySelector('[data-yii2md-action="switch"]')) {
-                var dualId = rootEl.getAttribute('data-instance-id');
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'yii2md-switch-btn';
-                btn.setAttribute('data-yii2md-action', 'switch');
-                btn.title = '切换到 Markdown';
-                btn.innerHTML = 'Markdown';
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
-                        window.Yii2Markdown.DualEngine.switchTo(dualId, 'cherry');
-                    }
-                });
-                rootEl.appendChild(btn);
-            }
-        } catch (e) { console.warn('[yii2-markdown] vditor switch btn inject failed:', e); }
+            var switchBtn = document.querySelector('#' + mountId + ' [data-type="switchToCherry"]');
+            if (switchBtn) { switchBtn.setAttribute('data-yii2md-action', 'switch'); }
+        } catch (e) {}
         if (userAfter) { try { userAfter(); } catch (e) { console.warn(e); } }
     };
 
@@ -218,6 +201,24 @@ class VditorEditor extends Widget
         if (\$input) { \$input.value = value || ''; }
         if (userInput) { try { userInput(value); } catch (e) { console.warn(e); } }
     };
+
+    // ========= 双引擎切换按钮（Vditor 原生 toolbar click，不受事件委托拦截） =========
+    options.toolbar = options.toolbar || [];
+    options.toolbar.push('|', {
+        name: 'switchToCherry',
+        tip: '切换到 Markdown',
+        tipPosition: 's',
+        icon: '<svg viewBox="0 0 24 24" width="16" height="16"><text x="2" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor">M</text></svg>',
+        click: function() {
+            if (window.Yii2Markdown && window.Yii2Markdown.DualEngine) {
+                // 从根容器读取 DualEngine 注册的实例 ID
+                var rootEl = document.getElementById(mountId);
+                rootEl = rootEl ? rootEl.closest('.yii2-markdown-root') : null;
+                var dualId = rootEl ? rootEl.getAttribute('data-instance-id') : null;
+                window.Yii2Markdown.DualEngine.switchTo(dualId, 'cherry');
+            }
+        }
+    });
 
     try {
         var instance = new window.Vditor(mountId, options);
