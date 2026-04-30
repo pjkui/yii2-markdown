@@ -2,6 +2,61 @@
 
 本文件记录 `pjkui/yii2-markdown` 的显著变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)，版本号遵循 [Semantic Versioning](https://semver.org/)。
 
+## [1.6.0] - 2026-04-30
+
+> 主题：**双引擎切换 UI 全面优化、Bug 修复、测试覆盖率提升**
+> 涵盖 v1.5.0 → v1.5.6 的所有变更
+
+### Added
+
+- **单一演示页面**：`examples/index.php` 整合原 `examples/dual-engine-demo.php`，切换完全由前端处理，无需后端参数（`?engine=`）。
+- **工具栏内置切换按钮**：
+  - Cherry Markdown 工具栏末尾注入蓝色 **V** 徽章按钮（切换到 Vditor 所见即所得）
+  - Vditor 工具栏末尾通过原生 `toolbar click` 配置蓝色 **M** 徽章按钮（切换到 Markdown），不受 Vditor 事件委托拦截
+  - 徽章样式：20×20px 圆角矩形、白色粗体字母、hover 缩放动画，深色模式自动适配
+- **Demo 深色模式**：导航栏右侧增加 🌙/☀️ 切换胶囊按钮，全局深色样式覆盖页面背景/容器/输入框，偏好持久化到 `localStorage`。
+- **新增 E2E 测试**：
+  - `E6b`：验证 Vditor 切换按钮在 `vditor-toolbar` 内且可触发确认对话框
+  - `T7b`：验证 Vditor → Cherry 完整点击切换流程（内容保留）
+- **新增单元测试** `converter-edge.test.js`（16 tests）：覆盖 converter.js 所有错误路径
+- **Playwright 切换为 msedge**：`playwright.config.js` 改用 `msedge`，更贴近用户环境
+
+### Changed
+
+- `dual-engine-controller.js`：移除额外的顶部 `yii2md-toolbar-extra` 条，切换按钮统一内嵌到编辑器工具栏
+- `ConverterAsset`：加入 `dual-engine-controller.js`，随 Converter 资源一并发布，无需手动注册
+- `Editor.php`：Cherry 注入的切换按钮加 `data-yii2md-action="switch"` 属性，方便测试和 DualEngine 识别
+- E2E 所有 Vditor 等待超时统一调整为 `20_000ms`，减少 flaky
+
+### Fixed
+
+- **ECharts 报错**（`table-echarts-plugin[init]: Package echarts not found`）：
+  - `Cherry.usePlugin(EChartsTableEngine)` 全局执行会强制设置 `enableChart: true`，`rerenderAs` 重建 Cherry 时未传该配置导致崩溃
+  - 修复：`rerenderAs` 的 `new Cherry()` 中显式设置 `engine.syntax.table.enableChart: false`
+- **Vditor 切换按钮事件被拦截**：Vditor 工具栏使用事件委托，通过 DOM 注入的按钮 click 被拦截。改为使用 Vditor 原生 `toolbar` 配置方式，由 Vditor 内部管理点击事件
+- **Vditor 实例 ID 不匹配**：`VditorEditor.php` 的 `switchToCherry` 按钮原本写死 PHP instanceId，而 DualEngine 注册的是根容器 `data-instance-id`。修复：从 DOM 根容器动态读取 `data-instance-id`
+- **`customWysiwygToolbar is not a function`**：Vditor WYSIWYG 悬浮工具栏触发时调用了未定义的 `customWysiwygToolbar`。修复：在 `VditorEditor.php` 和 `dual-engine-controller.js` 的 `new Vditor()` 中加入空函数占位
+- **`dual-engine-controller.js` 中 `DualEngine` 变量引用错误**：`injectSwitchBtn` 使用了未定义的 `DualEngine`，改为 `api`
+
+### Test Coverage
+
+`converter.js` 单元测试覆盖率大幅提升：
+
+| 指标 | v1.4.0 | v1.6.0 |
+|------|--------|--------|
+| Statements | 63% | **93%** |
+| Branches | 69% | **87%** |
+| Functions | 71% | **100%** |
+| Lines | 68% | **98%** |
+
+**完整测试矩阵**：PHPUnit 18 + Jest 34 + Playwright 26 = **78 tests，全部通过**
+
+---
+
+## [1.4.0] - 2026-04-27
+
+（见 git 历史）
+
 ## [1.3.0] - Unreleased
 
 > 主题：**双引擎（Cherry Markdown + Vditor），可在 Markdown 与所见即所得之间无缝切换**
@@ -44,26 +99,13 @@
 
 ### Changed
 - **JS 注入位置**：`Editor` 与 `Preview` 的客户端脚本由默认的 `View::POS_READY` 改为 `View::POS_END`。
-  - 原因：`POS_READY` 会隐式把代码包装在 `jQuery(function($){...})` 里，导致使用方必须引入 jQuery，否则 `jQuery is not defined`。
-  - 组件自身的初始化脚本均以 IIFE 包装，`POS_END` 时 DOM 已就绪，**彻底消除 jQuery 依赖**。
-- **EditorAsset `publishOptions.only`**：由 `['*/*.js', '*/*.css', 'addons/*', 'fonts/*']` 调整为 `['*.js', '*.css', '*/*.js', '*/*.css', 'addons/*', 'fonts/*']`。
-  - 补全根目录 `dist/*.js` / `dist/*.css` 的匹配，此前 **`cherry-markdown.js/css/upload-file.js` 会被 AssetManager 过滤掉**，导致所有使用方首次发布资源后出现 404 和编辑器加载失败。
+- **EditorAsset `publishOptions.only`**：补全根目录 `dist/*.js` / `dist/*.css` 的匹配。
 
 ### Fixed
-- 修复 `src/Preview.php` 中 PHP 8.2+ 已废弃的 `${var}` 字符串插值语法，改为 `{$var}`。
+- 修复 `src/Preview.php` 中 PHP 8.2+ 已废弃的 `${var}` 字符串插值语法。
 
 ### Security
-- **Demo 上传接口加固**：
-  - 仅允许 `POST`、`REMOTE_ADDR` 为回环地址
-  - 扩展名白名单 + `finfo` 真实 MIME 双重校验（防 `.png` 藏 `<?php>` 等扩展名伪装攻击）
-  - 完全丢弃用户原始文件名，使用 `时间戳_随机串.白扩展名` 重命名
-  - 5 MB 大小上限，`X-Content-Type-Options: nosniff`、`X-Robots-Tag: noindex`
-- `examples/uploads/.htaccess`：在误部署到 Apache 时禁止执行 `.php/.phtml/.phar/.py/.sh/.cgi` 等脚本，关闭目录索引。
-
-### Internal
-- `yidas/yii2-bower-asset` 移动到 `require-dev`，仅本地开发/测试使用，不强制终端用户。
-- `composer.json` 新增 `allow-plugins.yiisoft/yii2-composer`。
-- `.gitignore` 新增 `composer.lock`、`.phpunit.result.cache`、`examples/assets/`、`examples/uploads/*`（保留防护文件）。
+- **Demo 上传接口加固**：扩展名白名单 + `finfo` 真实 MIME 双重校验，完全丢弃用户原始文件名，5 MB 上限。
 
 ## [1.1.0] - 之前版本
 
