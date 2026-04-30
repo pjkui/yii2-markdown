@@ -1,11 +1,17 @@
 # yii2-markdown
 
-`yii2-markdown` 是一个基于 [Cherry Markdown](https://github.com/Tencent/cherry-markdown) 封装的 Yii2 扩展，提供：
+`yii2-markdown` 是一个基于 [Cherry Markdown](https://github.com/Tencent/cherry-markdown) 与 [Vditor](https://github.com/Vanessa219/vditor) 封装的 Yii2 扩展，支持 **双引擎**——用户可在编辑器工具栏中随时在 Markdown 源码模式与所见即所得（WYSIWYG）模式之间切换，无需刷新页面。
 
-- Markdown 编辑器组件 `pjkui\markdown\Editor`
-- Markdown 只读预览组件 `pjkui\markdown\Preview`
-- 已打包的前端静态资源 `EditorAsset`
-- 文件上传、草稿自动保存、快捷键提交、字数统计等增强能力
+**核心能力：**
+
+- Markdown 编辑器组件 `pjkui\markdown\Editor`（Cherry Markdown 引擎）
+- 所见即所得编辑器组件 `pjkui\markdown\VditorEditor`（Vditor 引擎）
+- 只读预览组件 `pjkui\markdown\Preview`
+- 工具栏一键切换，带确认对话框 + 一键放弃转换横幅
+- 文件上传、草稿自动保存（LocalStorage）、快捷键提交（Ctrl/⌘+S）、字数统计
+- 深色模式跟随 `data-theme="dark"`
+
+---
 
 ## 安装
 
@@ -13,100 +19,199 @@
 composer require pjkui/yii2-markdown
 ```
 
+---
+
 ## 快速开始
+
+### 纯 Markdown 模式（默认）
 
 ```php
 use pjkui\markdown\Editor;
 
 echo Editor::widget([
-    'model' => $model,
+    'model'     => $model,
     'attribute' => 'content',
+    'options'   => [
+        'url'   => '/upload',       // 文件上传接口
+        'extra' => ['type' => 'md'],
+    ],
 ]);
 ```
 
-## 文档
+### 所见即所得模式（WYSIWYG）
 
-- [文档首页](./docs/README.md)
-- [安装说明](./docs/installation.md)
-- [使用示例](./docs/usage.md)
-- [配置说明](./docs/configuration.md)
-- [测试与可视化验证](./docs/testing.md)
+```php
+echo Editor::widget([
+    'model'      => $model,
+    'attribute'  => 'content',
+    'isMarkdown' => false,           // 启动即 WYSIWYG（Vditor）
+    'options'    => ['url' => '/upload'],
+]);
+```
+
+### 双引擎可切换（推荐）
+
+默认以 Markdown 模式启动，工具栏末尾自动注入蓝色 **V** 按钮（切换到 WYSIWYG），切换后变为蓝色 **M** 按钮（切回 Markdown）。
+
+**必须在页面中注册资源**，否则切换时 Vditor 未加载会失败：
+
+```php
+use pjkui\markdown\Editor;
+use pjkui\markdown\ConverterAsset;
+use pjkui\markdown\VditorAsset;
+
+// 预加载双引擎资源（包含 dual-engine-controller.js）
+ConverterAsset::register($this); // $this = \yii\web\View
+VditorAsset::register($this);
+
+echo Editor::widget([
+    'model'     => $model,
+    'attribute' => 'content',
+    'options'   => ['url' => '/upload'],
+]);
+```
+
+**表单后端接收**（切换后会多出 `_md` / `_html` 两个隐藏字段）：
+
+```php
+public function rules(): array
+{
+    return [
+        [['content', 'content_md', 'content_html'], 'string'],
+    ];
+}
+
+public function beforeSave($insert): bool
+{
+    if (!parent::beforeSave($insert)) return false;
+    // 以 Markdown 为权威源，HTML 用作展示缓存
+    if (!empty($this->content_md)) {
+        $this->content = $this->content_md;
+    }
+    return true;
+}
+```
+
+---
+
+## 只读预览
+
+```php
+use pjkui\markdown\Preview;
+
+echo Preview::widget([
+    'value' => $model->content,  // Markdown 字符串
+]);
+```
+
+---
+
+## 切换事件监听
+
+```js
+document.addEventListener('yii2md:beforeSwitch', e => {
+    console.log('即将切换', e.detail); // { instanceId, from, to }
+});
+document.addEventListener('yii2md:afterSwitch', e => {
+    console.log('已切换到', e.detail.to);
+});
+document.addEventListener('yii2md:revert', e => {
+    console.log('已放弃本次转换', e.detail);
+});
+```
+
+---
+
+## 编程式切换
+
+```js
+// 切换到所见即所得
+window.Yii2Markdown.DualEngine.switchTo('vditor');
+
+// 切换到 Markdown
+window.Yii2Markdown.DualEngine.switchTo('cherry');
+
+// 放弃本次转换，恢复切换前的内容和模式
+window.Yii2Markdown.DualEngine.revert();
+```
+
+---
 
 ## 目录结构
 
 ```text
 src/
-  Editor.php
-  Preview.php
-  EditorAsset.php
+  Editor.php            # 统一入口（按 isMarkdown 路由到 Cherry / Vditor）
+  VditorEditor.php      # Vditor WYSIWYG 引擎
+  Preview.php           # 只读预览
+  EditorAsset.php       # Cherry 资源包
+  VditorAsset.php       # Vditor 资源包
+  ConverterAsset.php    # Markdown↔HTML 互转 + DualEngine 控制器
   dist/
+    cherry-markdown.js/css
+    vditor/
+    dual-engine-controller.js  # 双引擎切换逻辑
+    converter.js               # Markdown↔HTML 互转 API
 docs/
-  README.md
-  installation.md
   usage.md
   configuration.md
+  migration-guide.md    # 双引擎升级指南
+examples/
+  index.php             # 本机可视化 Demo（composer demo 启动）
 ```
 
-## 说明
+---
 
-- 当前包通过 `composer.json` 将命名空间 `pjkui\markdown\` 映射到 `src/`
-- `Editor` 默认输出隐藏的 `textarea` 加前端编辑器容器，便于表单提交
-- `Preview` 适合详情页、只读预览区域等场景
+## 本机 Demo
 
-更多细节请查看 [docs](./docs/README.md)。
+```bash
+composer demo
+# 访问 http://127.0.0.1:8080/
+```
+
+Demo 页支持：
+- Cherry ↔ Vditor 工具栏一键切换（含放弃转换）
+- 深色 / 浅色主题切换（🌙/☀️）
+- 文件上传、草稿恢复、表单提交回显
+
+---
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [usage.md](./docs/usage.md) | 完整使用示例 |
+| [configuration.md](./docs/configuration.md) | 所有配置项说明 |
+| [migration-guide.md](./docs/migration-guide.md) | v1.3+ 双引擎升级指南 |
+| [testing.md](./docs/testing.md) | 测试与可视化验证 |
+
+---
 
 ## 测试
 
-项目同时维护 **PHP 单元测试**（PHPUnit）、**前端单元测试**（Jest）和 **端到端回归测试**（Playwright）。
-
-### 一键跑所有测试
+项目同时维护 **PHPUnit**、**Jest** 和 **Playwright** 三套测试，共 **78 tests**。
 
 ```bash
+# 一键跑所有测试
 npm run test:all
+
+# 分类运行
+npm run test:php    # PHPUnit（18 tests）
+npm test            # Jest 单元测试（34 tests）
+npm run test:e2e    # Playwright E2E（26 tests）
 ```
 
-该脚本会依次执行：
-
-1. `composer install` —— 安装 PHP 依赖
-2. `npm install` —— 安装前端 / E2E 测试依赖
-3. `vendor/bin/phpunit` —— PHP 单元测试（`tests/` 下的 `*Test.php`）
-4. `jest` —— 前端转换器单元测试（`tests/unit/**/*.test.js`）
-5. `playwright test` —— E2E 回归矩阵（`tests/e2e/*.spec.js`）
-
-### 按类型单独跑
+首次运行前安装依赖：
 
 ```bash
-# PHP 单元测试（PHPUnit）
-npm run test:php
-# 等价：vendor/bin/phpunit
-
-# JS 单元测试（Jest + jsdom）
-npm test
-# 等价：jest
-
-# E2E 回归（Playwright + PHP 内置 server）
-npm run test:e2e
+composer install && npm install
+npx playwright install msedge
 ```
 
-### 前置依赖
+### 测试套件
 
-首次运行前需要：
-
-```bash
-composer install
-npm install
-npx playwright install chromium firefox   # 只有首次需要
-```
-
-### Playwright 本地服务
-
-Playwright 通过 `tests/run-server.sh` 启动 `php -S localhost:8080 -t examples examples/router.php`（即 `composer demo` 等价命令），测试结束自动关闭。无需手动起服务。
-
-### 测试套件组织
-
-- `tests/` —— 顶层 PHP 单元测试（bootstrap + 历史用例）
-- `tests/unit/converter/` —— 前端 Markdown ↔ HTML 转换器单元测试
-- `tests/integration/` —— PHP 集成测试（与 Yii2 框架交互的场景）
-- `tests/e2e/` —— Playwright 端到端回归矩阵（R1–R6）
-
-`phpunit.xml.dist` 将 `tests/unit` 与 `tests/integration` 分成两个 suite，可通过 `vendor/bin/phpunit --testsuite unit` 或 `--testsuite integration` 单独运行。
+| 目录 | 工具 | 内容 |
+|------|------|------|
+| `tests/` | PHPUnit | PHP 组件单元 + 集成测试 |
+| `tests/unit/converter/` | Jest | Markdown↔HTML 转换器，含覆盖率（93%） |
+| `tests/e2e/` | Playwright | 双引擎切换 E2E 回归（T1–T9、E1–E7、R1–R6） |
