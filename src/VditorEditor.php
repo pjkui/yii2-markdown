@@ -220,6 +220,11 @@ class VditorEditor extends Widget
         }
     });
 
+    // customWysiwygToolbar 占位，避免 Vditor WYSIWYG 悬浮工具栏触发时报错
+    if (!options.customWysiwygToolbar) {
+        options.customWysiwygToolbar = function() {};
+    }
+
     try {
         var instance = new window.Vditor(mountId, options);
         window.vditor_{$this->instanceId} = instance;

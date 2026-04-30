@@ -507,6 +507,8 @@
                     cache: { enable: false },
                     value: valueForTarget || '',
                     toolbar: vditorToolbar,
+                    // 占位，避免 WYSIWYG 悬浮工具栏触发时报 "is not a function"
+                    customWysiwygToolbar: function() {},
                     after: function () {
                         try {
                             // 双保险：value 选项在多数版本下足够，但若被 vditor 内部 reset 清空，
