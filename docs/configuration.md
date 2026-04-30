@@ -85,26 +85,183 @@
 - 保留移动端预览和复制侧边栏能力
 - 高度默认约为 `80vh`
 
-## 双引擎相关（v1.3.0+）
+## 双引擎相关配置（v1.3.0+）
 
-详细配置见 [docs/usage.md §7](./usage.md#7-双引擎markdown-) 与 [docs/migration-guide.md](./migration-guide.md)。
+### `Editor` 双引擎属性
 
-| 提交字段 | 说明 |
-| --- | --- |
-| `{attribute}_md` | 当前 Markdown 文本（Cherry 模式直接来自源码；Vditor 模式由 `Turndown` 转换） |
-| `{attribute}_html` | 当前 HTML 文本（Vditor 模式直接来自渲染；Cherry 模式由 `marked` 转换） |
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `isMarkdown` | `bool` | `true` | `true`：启动 Cherry Markdown 源码模式；`false`：启动 Vditor 所见即所得模式 |
 
-| 全局对象 | 类型 | 用途 |
-| --- | --- | --- |
-| `window.Yii2Markdown.DualEngine` | `object` | 提供 `init / switchTo / revert` |
-| `window.Yii2Markdown.Converter` | `object` | 提供 `markdownToHtml / htmlToMarkdown` |
-| `window.cherry{N}` | `Cherry` 实例 | 当 N 号实例运行 Cherry 时存在 |
-| `window.vditor_{N}` | `Vditor` 实例 | 当 N 号实例运行 Vditor 时存在 |
+> `switchable` 字段已废弃（v1.6.0 起切换按钮始终注入到工具栏，无法通过属性关闭）。
+
+---
+
+### 资源包
+
+| Asset | 包含内容 | 何时注册 |
+|-------|---------|---------|
+| `EditorAsset` | `cherry-markdown.js/css`、`upload-file.js` | `Editor::widget` 调用时自动注册 |
+| `VditorAsset` | `vditor.min.js/css`、`dist/js/lute/lute.min.js` | 使用双引擎切换时**手动注册** |
+| `ConverterAsset` | `marked.min.js`、`turndown.min.js`、`turndown-plugin-gfm.min.js`、`converter.js`、`dual-engine-controller.js` | 使用双引擎切换时**手动注册** |
+
+```php
+// 在 View 或 Controller::actionXxx 中注册
+\pjkui\markdown\ConverterAsset::register($this);
+\pjkui\markdown\VditorAsset::register($this);
+```
+
+> `ConverterAsset` 已包含 `dual-engine-controller.js`，无需单独加载控制器。
+
+---
+
+### `VditorEditor` 属性（直接使用时）
+
+通过 `Editor::widget(['isMarkdown' => false])` 会自动路由到 `VditorEditor`。若直接实例化：
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `name` | `string` | `''` | 隐藏 `textarea` 的 `name`；为空时从 `model/attribute` 推导 |
+| `model` | `Model\|null` | `null` | 绑定模型 |
+| `attribute` | `string\|null` | `null` | 绑定字段 |
+| `value` | `string` | `''` | 初始内容（优先级高于 `model` 属性值） |
+| `clientOptions` | `array` | `[]` | 传给 `new Vditor(selector, options)` 的配置 |
+| `uploadUrl` | `string` | `''` | 文件上传接口地址 |
+| `uploadExtra` | `array` | `[]` | 上传附加参数 |
+
+`clientOptions` 常用键：
+
+| 键名 | 说明 | 默认值 |
+|------|------|--------|
+| `mode` | 编辑模式：`'wysiwyg'`（所见即所得）、`'ir'`（即时渲染）、`'sv'`（分屏预览） | `'wysiwyg'` |
+| `height` | 编辑器高度 | Vditor 默认 |
+| `placeholder` | 占位文本 | — |
+| `toolbar` | 工具栏配置（数组） | Vditor 默认 + 末尾 M 徽章按钮 |
+| `theme` | 主题：`'classic'` / `'dark'` | `'classic'` |
+| `cache.enable` | 是否启用 Vditor 内部 localStorage 缓存 | `false`（已关闭） |
+
+---
+
+### 工具栏切换按钮
+
+| 编辑器 | 按钮 | 样式 | 注入方式 |
+|--------|------|------|---------|
+| Cherry Markdown | **V** | 蓝色 20×20 圆角矩形 + 白色粗体，hover 缩放 | `Editor.php` 通过 DOM 注入到 `.cherry-toolbar .toolbar-left` |
+| Vditor WYSIWYG | **M** | 同款徽章样式（内联样式，不依赖外部 CSS） | `VditorEditor.php` 通过 `options.toolbar.push` 原生配置注入 |
+
+切换按钮选择器：`[data-yii2md-action="switch"]`（可用于 E2E 测试或自定义逻辑）。
+
+深色模式适配：Cherry 的 V 按钮通过 CSS 类 `.yii2md-switch-badge` 跟随 `[data-theme="dark"]` 变为稍亮的蓝色。Vditor 的 M 按钮使用内联样式，深色模式下 Vditor 自身工具栏背景会提供对比。
+
+---
+
+### 双引擎控制器（`DualEngine`）
+
+**全局 API：**
+
+```js
+window.Yii2Markdown.DualEngine.init(opts?)
+// 自动扫描页面中所有 .yii2-markdown-root[data-instance-id] 并初始化
+// 由 DOMContentLoaded 自动调用，无需手动调用
+
+window.Yii2Markdown.DualEngine.switchTo(idOrAlias, targetEngine?)
+// idOrAlias：实例 id（字符串/数字）或引擎别名（单实例时可省略 id）
+// targetEngine：'cherry'|'md'|'markdown'  或  'vditor'|'wysiwyg'|'html'
+// 返回 Promise<boolean>，切换成功返回 true
+
+window.Yii2Markdown.DualEngine.revert(idOrAlias?)
+// 放弃本次转换，恢复到切换前的快照
+// 返回 boolean
+
+window.Yii2Markdown.DualEngine.getInstance(id)
+// 返回指定实例的内部状态对象（调试用）
+```
+
+**实例状态对象（`state`）常用字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `string` | 实例 ID（等于根容器 `data-instance-id`） |
+| `engine` | `string` | 当前引擎：`'cherry'` 或 `'vditor'` |
+| `root` | `HTMLElement` | 编辑器根容器（`.yii2-markdown-root`） |
+| `input` | `HTMLTextAreaElement` | 绑定表单的隐藏 `textarea` |
+| `mdInput` | `HTMLInputElement` | `{name}_md` 隐藏字段 |
+| `htmlInput` | `HTMLInputElement` | `{name}_html` 隐藏字段 |
+| `snapshot` | `{engine, value, time}\|null` | 切换前的快照（放弃转换时使用） |
+
+---
+
+### 互转 API（`Converter`）
+
+```js
+window.Yii2Markdown.Converter.markdownToHtml(md, options?)
+// options 透传给 marked.parse()，默认 { gfm: true, breaks: false }
+// 返回 string；失败或入参非法返回 ''
+
+window.Yii2Markdown.Converter.htmlToMarkdown(html, options?)
+// options 透传给 new TurndownService()
+// 默认：headingStyle:'atx', bulletListMarker:'-', codeBlockStyle:'fenced'
+// 返回 string；失败或入参非法返回 ''
+```
+
+**依赖（随 `ConverterAsset` 一并加载）：**
+- [marked](https://marked.js.org/) 12.x（GFM 支持）
+- [Turndown](https://github.com/mixmark-io/turndown)（HTML→MD）
+- [turndown-plugin-gfm](https://github.com/mixmark-io/turndown-plugin-gfm)（GFM 扩展：表格、删除线、任务列表）
+
+---
+
+### DOM 约定
+
+`Editor` / `VditorEditor` 渲染的根容器带有以下标识属性，`DualEngine` 通过这些属性识别和管理实例：
+
+```html
+<!-- Cherry 模式 -->
+<div class="yii2-markdown-root yii2-markdown-root--cherry"
+     data-engine="cherry"
+     data-is-markdown="1"
+     data-instance-id="2">
+  <textarea name="Post[content]" hidden></textarea>
+  <div id="cherry2"></div>
+</div>
+
+<!-- Vditor 模式 -->
+<div class="yii2-markdown-root yii2-markdown-root--vditor"
+     data-engine="vditor"
+     data-is-markdown="0"
+     data-instance-id="1">
+  <div id="vditor1" class="yii2-markdown-vditor-mount"></div>
+  <textarea name="Post[content]" hidden data-role="vditor-input"></textarea>
+</div>
+```
+
+切换后 `data-engine` 和类名会自动更新，可用于 CSS 按引擎条件样式：
+
+```css
+/* 仅在 Vditor 模式下隐藏某元素 */
+.yii2-markdown-root--vditor .my-md-only-tip {
+    display: none;
+}
+```
+
+---
+
+### 全局对象速查
+
+| 对象 | 类型 | 存在条件 |
+|------|------|---------|
+| `window.Yii2Markdown.DualEngine` | `object` | `ConverterAsset` 已加载 |
+| `window.Yii2Markdown.Converter` | `object` | `ConverterAsset` 已加载 |
+| `window.cherry{N}` | `Cherry` 实例 | N 号实例当前为 Cherry 模式 |
+| `window.vditor_{N}` | `Vditor` 实例 | N 号实例当前为 Vditor 模式 |
+
+---
 
 ## 配置建议
 
-- 在表单页优先使用 `model + attribute`
+- 在表单页优先使用 `model + attribute`，由组件自动推导字段名和 ID
 - 上传文件时始终传入 `options.url`
-- 若宿主系统已有自己的草稿机制，可考虑后续把本地草稿逻辑抽为可开关配置
-- 若页面本身支持深色模式，建议统一设置根节点 `data-theme`
-- 双引擎并存场景：建议把 `{attribute}_md` 作为权威源，`{attribute}_html` 作为渲染缓存
+- 使用双引擎切换时，始终同时注册 `ConverterAsset` 和 `VditorAsset`
+- 建议把 `{attribute}_md` 作为权威源存储，`{attribute}_html` 作为展示渲染缓存
+- 若宿主系统已有深色模式，在根节点设置 `data-theme="dark"` 即可自动适配 Cherry 和状态栏样式
+- 若页面有自己的草稿机制，可通过监听 `yii2md:afterSwitch` 在切换时清理对应的本地草稿 key
