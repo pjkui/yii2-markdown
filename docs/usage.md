@@ -118,73 +118,213 @@ echo Editor::widget([
 
 从 v1.3.0 起，`Editor` 同时支持两种编辑引擎：
 
-- **Cherry Markdown**：经典 Markdown 源码模式（默认）
-- **Vditor**：所见即所得（WYSIWYG）模式
+- **Cherry Markdown**（默认）：经典 Markdown 源码模式，左侧编辑、右侧实时预览
+- **Vditor**：所见即所得（WYSIWYG）模式，直接在富文本区域编辑
 
-### 7.1 选择启动引擎
+两种模式可通过工具栏按钮在同一页面**无刷新切换**。
+
+---
+
+### 7.1 必要资源注册
+
+使用双引擎切换功能时，必须提前注册 Vditor 和 Converter 资源，否则切换时会因 `Vditor is not loaded` 失败：
 
 ```php
+use pjkui\markdown\Editor;
+use pjkui\markdown\ConverterAsset;
+use pjkui\markdown\VditorAsset;
+
+// 在 View 中注册（通常放在 controller action 或 view 文件顶部）
+ConverterAsset::register($this); // 含 dual-engine-controller.js 和 Markdown↔HTML 互转 API
+VditorAsset::register($this);    // 含 Vditor WYSIWYG 引擎
+
 echo Editor::widget([
-    'model' => $model,
+    'model'     => $model,
     'attribute' => 'content',
-    'isMarkdown' => true,    // true = Cherry / Markdown；false = Vditor / WYSIWYG
+    'options'   => ['url' => '/upload'],
 ]);
 ```
 
-省略 `isMarkdown` 时默认为 `true`，行为与 v1.2.x 完全一致。
+> **注意**：`ConverterAsset` 已经包含 `dual-engine-controller.js`，无需单独加载。
 
-### 7.2 双 hidden 字段
+---
 
-无论从哪种引擎进入页面，组件都会渲染两个隐藏 `textarea`：
+### 7.2 选择启动引擎
 
-- `name="{attribute}_md"`：Markdown 文本
-- `name="{attribute}_html"`：HTML 文本
+```php
+// 默认：Markdown 模式（Cherry），与 v1.2.x 完全兼容
+echo Editor::widget([
+    'model'      => $model,
+    'attribute'  => 'content',
+    'isMarkdown' => true,   // 可省略
+]);
 
-每次内容变更时，**当前引擎的原生格式**会被同步进对应的隐藏字段，另一端按需通过转换 API 填充。后端可根据业务选择存储 Markdown、HTML 或两者皆存。
+// 以所见即所得模式启动
+echo Editor::widget([
+    'model'      => $model,
+    'attribute'  => 'content',
+    'isMarkdown' => false,
+]);
+```
 
-### 7.3 工具栏中的「切换模式」按钮
+---
 
-两个引擎的工具栏右侧都会注入一枚切换按钮：
+### 7.3 工具栏切换按钮
 
-- 点击后弹出确认对话框（纯 CSS 实现，无第三方依赖）
-- 用户确认后内部用 `marked`/`Turndown` 将当前内容互转为另一种格式
-- 切换完成后顶部出现黄色横幅，提示"已转换为 X 模式"，并带「放弃转换」按钮，可一键回到切换前的内容与引擎
+两个引擎的工具栏末尾都会自动注入一枚**蓝色圆角徽章**切换按钮：
 
-### 7.4 监听切换事件
+| 当前引擎 | 按钮 | 点击后切换到 |
+|----------|------|-------------|
+| Cherry Markdown | **V**（蓝色） | Vditor 所见即所得 |
+| Vditor WYSIWYG  | **M**（蓝色） | Cherry Markdown |
+
+切换流程：
+
+1. 用户点击工具栏中的 V / M 按钮
+2. 弹出确认对话框（纯 CSS，无第三方依赖）
+3. 确认后内容通过 `marked` / `Turndown` 互转，渲染新引擎
+4. 顶部出现黄色「已转换为 X 模式」横幅，附带**放弃转换**按钮，可一键恢复切换前的内容和引擎
+5. 点「忽略」或继续编辑则横幅消失
+
+---
+
+### 7.4 表单后端接收
+
+切换后，表单提交时除原字段外还会附带两个隐藏字段：
+
+- `{attribute}_md`：Markdown 原文
+- `{attribute}_html`：对应的 HTML
+
+**Model rules 示例：**
+
+```php
+public function rules(): array
+{
+    return [
+        [['content', 'content_md', 'content_html'], 'string'],
+    ];
+}
+```
+
+**推荐持久化策略（以 Markdown 为权威源）：**
+
+```php
+public function beforeSave($insert): bool
+{
+    if (!parent::beforeSave($insert)) {
+        return false;
+    }
+    // content_md 是用户实际编辑的 Markdown 内容
+    // content_html 用于前端展示缓存，无需重复渲染
+    if (!empty($this->content_md)) {
+        $this->content = $this->content_md;
+    }
+    return true;
+}
+```
+
+---
+
+### 7.5 监听切换事件
 
 控制器会在切换流程中派发以下 `CustomEvent`，可在 `document` 上监听：
 
 | 事件 | 时机 | `event.detail` |
-| --- | --- | --- |
+|------|------|----------------|
 | `yii2md:beforeSwitch` | 用户已确认，转换前 | `{ instanceId, from, to }` |
-| `yii2md:afterSwitch`  | 转换并重渲染完成 | `{ instanceId, from, to }` |
-| `yii2md:revert`       | 用户点击放弃转换 | `{ instanceId, restoredEngine }` |
+| `yii2md:afterSwitch`  | 转换并重渲染完成   | `{ instanceId, from, to }` |
+| `yii2md:revert`       | 用户点击放弃转换   | `{ instanceId, restoredEngine }` |
 
 ```html
 <script>
-document.addEventListener('yii2md:afterSwitch', e => {
-    console.log('引擎已切到', e.detail.to);
+document.addEventListener('yii2md:beforeSwitch', function(e) {
+    console.log('即将从', e.detail.from, '切换到', e.detail.to);
+});
+document.addEventListener('yii2md:afterSwitch', function(e) {
+    console.log('已切换到', e.detail.to);
+});
+document.addEventListener('yii2md:revert', function(e) {
+    console.log('已恢复到', e.detail.restoredEngine);
 });
 </script>
 ```
 
-### 7.5 编程式 API
+---
 
-加载完成后，全局会暴露：
+### 7.6 编程式 API
+
+页面加载完成后，以下全局 API 可用：
 
 ```js
-window.Yii2Markdown.DualEngine.init();                       // 由 DOM 加载完成自动调用，幂等
-window.Yii2Markdown.DualEngine.switchTo(id, 'cherry'|'vditor'); // 编程式切换（弹确认框）
-window.Yii2Markdown.DualEngine.revert(id);                   // 等价于点击「放弃转换」
-window.Yii2Markdown.Converter.markdownToHtml(md, options?);  // 同步 Markdown → HTML（marked 12 + GFM）
-window.Yii2Markdown.Converter.htmlToMarkdown(html, options?);// 同步 HTML → Markdown（Turndown + GFM）
+// 切换（会弹确认框）
+window.Yii2Markdown.DualEngine.switchTo('vditor');   // → 所见即所得
+window.Yii2Markdown.DualEngine.switchTo('cherry');   // → Markdown
+// 或传实例 id（多编辑器场景）
+window.Yii2Markdown.DualEngine.switchTo('2', 'vditor');
+
+// 放弃本次转换，恢复上一个快照
+window.Yii2Markdown.DualEngine.revert();
+
+// 获取当前实例状态
+const state = window.Yii2Markdown.DualEngine.getInstance('2');
+console.log(state.engine); // 'cherry' 或 'vditor'
 ```
 
-> 在不使用 Cherry/Vditor 的纯展示页里，也可以**单独**注册 `ConverterAsset` 来使用互转 API：
+**Markdown ↔ HTML 互转（可单独使用）：**
+
+```js
+const html = window.Yii2Markdown.Converter.markdownToHtml('# Hello\n\n**bold**');
+const md   = window.Yii2Markdown.Converter.htmlToMarkdown('<h1>Hello</h1>');
+```
+
+> 在不使用编辑器的纯展示页里，也可以单独注册 `ConverterAsset` 来使用互转 API：
 >
 > ```php
 > use pjkui\markdown\ConverterAsset;
 > ConverterAsset::register($this);
 > ```
+
+---
+
+### 7.7 多编辑器场景
+
+同一页面可以同时渲染多个编辑器实例（`Editor::$INSTANCE_ID` 自增），`DualEngine` 会独立管理每个实例：
+
+```php
+// 编辑器 1
+echo Editor::widget(['model' => $model1, 'attribute' => 'title']);
+// 编辑器 2
+echo Editor::widget(['model' => $model2, 'attribute' => 'content']);
+```
+
+通过 DOM 根容器的 `data-instance-id` 属性区分，JS 侧可通过 `DualEngine.getInstance(id)` 读取指定实例状态。
+
+---
+
+### 7.8 常见问题排查
+
+**Q：切换时报 `Vditor is not loaded`**  
+A：未注册 `VditorAsset`。在调用 `Editor::widget` 的 view 文件顶部加：
+```php
+\pjkui\markdown\VditorAsset::register($this);
+\pjkui\markdown\ConverterAsset::register($this);
+```
+
+**Q：切换时报 `table-echarts-plugin[init]: Package echarts not found`（v1.5.4 已修复）**  
+A：升级到 v1.5.5+。根因是 Cherry 的全局插件注册会强制开启 echarts 支持，v1.5.5 在重建 Cherry 时显式禁用了该插件。
+
+**Q：Vditor 工具栏 M 按钮点击无响应（v1.5.1 已修复）**  
+A：升级到 v1.5.2+。旧版本通过 DOM 注入按钮到 Vditor 工具栏，会被事件委托拦截；新版本改用 Vditor 原生 `toolbar click` 配置。
+
+**Q：Vditor 选中文字后报 `customWysiwygToolbar is not a function`（v1.5.6 已修复）**  
+A：升级到 v1.5.6+。新版本在 `new Vditor()` 时加入了空函数占位。
+
+**Q：切换后内容丢失**  
+A：使用顶部黄色横幅的「放弃转换」按钮，可一键恢复到切换前的内容和引擎。如果横幅已消失，请确认表单是否已提交并从后端 `content_md` 字段恢复。
+
+**Q：HTML → Markdown 转换后排版变化较大**  
+A：HTML → Markdown 是有损转换（CSS 样式、内联样式、复杂嵌套等无法保留）。建议以 Markdown 为主编辑格式，HTML 仅作展示缓存，避免在两种模式间反复切换。
+
+---
 
 更详细的迁移与字段持久化建议见 [docs/migration-guide.md](./migration-guide.md)。
