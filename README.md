@@ -1,5 +1,10 @@
 # yii2-markdown
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
+[![Total Downloads](https://img.shields.io/packagist/dt/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
+[![License](https://img.shields.io/packagist/l/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
+[![PHP Version](https://img.shields.io/packagist/php-v/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
+
 `yii2-markdown` 是一个基于 [Cherry Markdown](https://github.com/Tencent/cherry-markdown) 与 [Vditor](https://github.com/Vanessa219/vditor) 封装的 Yii2 扩展，支持 **双引擎**——用户可在编辑器工具栏中随时在 Markdown 源码模式与所见即所得（WYSIWYG）模式之间切换，无需刷新页面。
 
 **核心能力：**
