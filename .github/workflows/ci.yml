@@ -34,7 +34,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
@@ -68,7 +67,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
