@@ -48,7 +48,6 @@ jobs:
         run: npx jest --coverage --coverageDirectory=coverage --collectCoverageFrom='src/dist/converter.js' --coverageReporters=text --coverageReporters=lcov
 
       - name: Upload coverage to Codecov
-        # 公开仓库无需 CODECOV_TOKEN（tokenless 上传）
         uses: codecov/codecov-action@v4
         with:
           files: coverage/lcov.info
@@ -56,7 +55,7 @@ jobs:
           name: converter-js
           fail_ci_if_error: false
           verbose: false
-
+          token: ${{ secrets.CODECOV_TOKEN }}
   # ── Job 2：Playwright E2E 测试（msedge） ─────────────────────────────────
   e2e:
     name: E2E Tests (Playwright / msedge)
