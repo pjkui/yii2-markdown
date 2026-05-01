@@ -47,3 +47,14 @@ examples/uploads/*
 # ===== 其他 =====
 .env
 .env.local
+
+# ===== 本地临时文件（截图、playwright-cli 产物）=====
+*.png
+*.yaml
+*.yml
+!.github/workflows/*.yml
+!playwright.config.js
+.playwright-cli/
+.codebuddy/
+CODEBUDDY.md
+examples/CODEBUDDY.md
