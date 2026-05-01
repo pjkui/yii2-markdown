@@ -39,7 +39,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Install Node dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --colors=never
@@ -72,7 +72,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Install Node dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Install Microsoft Edge (stable)
         run: |
