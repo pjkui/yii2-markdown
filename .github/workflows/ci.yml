@@ -84,10 +84,25 @@ jobs:
       - name: Install Playwright msedge dependencies
         run: npx playwright install --with-deps msedge
 
+      - name: Update visual snapshots (linux baseline)
+        # 首次在新平台运行时写入基准快照，后续推送才做真正的视觉回归比对
+        run: npx playwright test tests/e2e/ --project=msedge --update-snapshots -g "R6" --reporter=list
+        env:
+          CI: true
+
       - name: Run Playwright E2E (msedge)
         run: npx playwright test tests/e2e/ --project=msedge --reporter=list
         env:
           CI: true
+
+      - name: Commit updated snapshots
+        # 若有新的 linux 快照文件，自动 commit 回 master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/regression.spec.js-snapshots/
+          git diff --cached --quiet || git commit -m "ci: update visual snapshots for linux [skip ci]"
+          git push || true
 
       - name: Upload Playwright report on failure
         if: failure()
