@@ -45,7 +45,17 @@ jobs:
         run: vendor/bin/phpunit --colors=never
 
       - name: Run Jest (with coverage)
-        run: npx jest --coverage --coverageDirectory=coverage --collectCoverageFrom='src/dist/converter.js' --coverageReporters=text
+        run: npx jest --coverage --coverageDirectory=coverage --collectCoverageFrom='src/dist/converter.js' --coverageReporters=text --coverageReporters=lcov
+
+      - name: Upload coverage to Codecov
+        # 公开仓库无需 CODECOV_TOKEN（tokenless 上传）
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
+          flags: jest
+          name: converter-js
+          fail_ci_if_error: false
+          verbose: false
 
   # ── Job 2：Playwright E2E 测试（msedge） ─────────────────────────────────
   e2e:

@@ -1,6 +1,7 @@
 # yii2-markdown
 
 [![CI](https://github.com/pjkui/yii2-markdown/actions/workflows/ci.yml/badge.svg)](https://github.com/pjkui/yii2-markdown/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/pjkui/yii2-markdown/graph/badge.svg)](https://codecov.io/gh/pjkui/yii2-markdown)
 [![Latest Stable Version](https://img.shields.io/packagist/v/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
 [![Total Downloads](https://img.shields.io/packagist/dt/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
 [![License](https://img.shields.io/packagist/l/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
