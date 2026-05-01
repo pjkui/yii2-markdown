@@ -1,5 +1,6 @@
 # yii2-markdown
 
+[![CI](https://github.com/pjkui/yii2-markdown/actions/workflows/ci.yml/badge.svg)](https://github.com/pjkui/yii2-markdown/actions/workflows/ci.yml)
 [![Latest Stable Version](https://img.shields.io/packagist/v/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
 [![Total Downloads](https://img.shields.io/packagist/dt/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
 [![License](https://img.shields.io/packagist/l/pjkui/yii2-markdown.svg)](https://packagist.org/packages/pjkui/yii2-markdown)
@@ -194,7 +195,7 @@ Demo 页支持：
 
 ## 测试
 
-项目同时维护 **PHPUnit**、**Jest** 和 **Playwright** 三套测试，共 **78 tests**。
+项目同时维护 **PHPUnit**、**Jest** 和 **Playwright** 三套测试，共 **78 tests**。每次 push 到 `master` 或创建 PR 时，GitHub Actions 会自动运行全套测试（PHP 8.1/8.2/8.3 × msedge）。
 
 ```bash
 # 一键跑所有测试
@@ -210,7 +211,7 @@ npm run test:e2e    # Playwright E2E（26 tests）
 
 ```bash
 composer install && npm install
-npx playwright install msedge
+npx playwright install --with-deps msedge
 ```
 
 ### 测试套件
